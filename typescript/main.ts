@@ -1,5 +1,5 @@
-import readline from 'node:readline';
-import { amble } from './ambler.ts'
+import { amble } from "./ambler.ts";
+import { BufReader } from "https://deno.land/std@0.224.0/io/buf_reader.ts";
 
 /**
  * Represents the different nodes or stages of the application.
@@ -16,28 +16,29 @@ enum Node {
  */
 type State = number;
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
 /**
  * Prompts the user for a number and transitions to the START node.
  * @param state The current state.
  * @returns A promise that resolves to the new state and the next node.
  */
-const promptNumber = (state: State): Promise<[State, Node | null]> => {
-  return new Promise((resolve) => {
-    rl.question('Enter a starting number: ', (answer) => {
-      const number = parseInt(answer, 10);
-      if (!isNaN(number)) {
-        resolve([number, Node.START]);
-      } else {
-        console.log('Invalid number. Please try again.');
-        resolve([state, Node.PROMPT_NUMBER]);
-      }
-    });
-  });
+const promptNumber = async (state: State): Promise<[State, Node | null]> => {
+  console.log("Enter a starting number:");
+  const bufReader = new BufReader(Deno.stdin);
+  const result = await bufReader.readLine();
+
+  if (!result) {
+    return [state, Node.STOP];
+  }
+
+  const line = new TextDecoder().decode(result.line);
+  const number = parseInt(line, 10);
+
+  if (!isNaN(number)) {
+    return [number, Node.START];
+  } else {
+    console.log("Invalid number. Please try again.");
+    return [state, Node.PROMPT_NUMBER];
+  }
 };
 
 /**
@@ -69,9 +70,15 @@ const step = async (state: State): Promise<[State, Node | null]> => {
  * @returns A promise that resolves to the final state and a null node.
  */
 const stop = async (state: State): Promise<[State, Node | null]> => {
-  console.log('Stopping count.');
-  rl.close();
+  console.log("Stopping count.");
   return [state, null];
+};
+
+const nodeFunctions = {
+  [Node.PROMPT_NUMBER]: promptNumber,
+  [Node.START]: start,
+  [Node.STEP]: step,
+  [Node.STOP]: stop,
 };
 
 /**
@@ -84,17 +91,9 @@ const stepFunction = (
   currentState: State,
   currentNode: Node
 ): Promise<[State, Node | null]> => {
-  switch (currentNode) {
-    case Node.PROMPT_NUMBER:
-      return promptNumber(currentState);
-    case Node.START:
-      return start(currentState);
-    case Node.STEP:
-      return step(currentState);
-    case Node.STOP:
-      return stop(currentState);
-  }
+  return nodeFunctions[currentNode](currentState);
 };
 
 // Start the application
 amble(0, Node.PROMPT_NUMBER, stepFunction);
+
