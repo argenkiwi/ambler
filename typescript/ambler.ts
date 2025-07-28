@@ -1,15 +1,27 @@
-export function resolve<S, A, D>(result: [S, A], direct: (a: A) => D | null): [S, D | null] {
-    const [state, action] = result;
-    return [state, direct(action)];
-}
+/**
+ * Asynchronously traverses a node-based structure, updating a state value at each step.
+ * This is the TypeScript equivalent of the provided Kotlin `amble` function.
+ *
+ * @param state The initial state.
+ * @param node The starting node.
+ * @param step An async function that takes the current state and node,
+ * and returns a promise resolving to a tuple with the new state
+ * and the next node (or null to terminate).
+ * @returns A promise that resolves to a tuple containing the final state and a null node.
+ */
+async function amble<S, N>(
+  state: S,
+  node: N,
+  step: (currentState: S, currentNode: N) => Promise<[S, N | null]>
+): Promise<[S, N | null]> {
+  let currentState: S = state;
+  let currentNode: N | null = node;
 
-export async function amble<S, E>(state: S, edge: E, follow: (state: S, edge: E) => Promise<[S, E | null]>): Promise<[S, E | null]> {
-    let currentEdge: E | null = edge;
-    let currentState: S = state;
+  while (currentNode !== null) {
+    const [newState, nextNode] = await step(currentState, currentNode);
+    currentState = newState;
+    currentNode = nextNode;
+  }
 
-    while (currentEdge) {
-        [currentState, currentEdge] = await follow(currentState, currentEdge);
-    }
-
-    return [currentState, null];
+  return [currentState, null];
 }
