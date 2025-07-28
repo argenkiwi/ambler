@@ -1,0 +1,16 @@
+{
+  "name": "javascript-ambler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "test": "mocha main.test.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mocha": "^11.7.1"
+  }
+}

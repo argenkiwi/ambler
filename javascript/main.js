@@ -1,5 +1,5 @@
 import { amble } from './ambler.js';
-import  readline from 'node:readline';
+import readline from 'node:readline';
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -7,14 +7,14 @@ const rl = readline.createInterface({
 });
 
 // Nodes.
-const Node = {
+const Node = Object.freeze({
     PROMPT_NUMBER: 0,
     START: 1,
     STEP: 2,
     STOP: 3,
-};
+});
 
-async function promptNumber(state) {
+function promptNumber(state) {
     return new Promise(resolve => {
         rl.question("Enter a starting number: ", (answer) => {
             const num = parseInt(answer);
@@ -33,9 +33,9 @@ function start(state) {
     return [state, Node.STEP];
 }
 
-async function step(state) {
+function step(state) {
     const count = state + 1;
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // await new Promise(resolve => setTimeout(resolve, 1000)); // Removed await
     console.log(`...${count}...`);
     return [count, Math.random() < 0.5 ? Node.STEP : Node.STOP];
 }
@@ -46,19 +46,20 @@ function stop(state) {
 }
 
 // Flow.
-async function direct(state, node) {
-    if (node === Node.PROMPT_NUMBER) {
-        return await promptNumber(state);
-    } else if (node === Node.START) {
-        return start(state);
-    } else if (node === Node.STEP) {
-        return await step(state);
-    } else if (node === Node.STOP) {
+const nodeFunctions = {
+    [Node.PROMPT_NUMBER]: promptNumber,
+    [Node.START]: start,
+    [Node.STEP]: step,
+    [Node.STOP]: (state) => {
         rl.close();
         return stop(state);
     }
+};
+
+function direct(state, node) {
+    return nodeFunctions[node](state);
 }
 
-(async () => {
-    await amble(0, Node.PROMPT_NUMBER, direct);
+(() => {
+    amble(0, Node.PROMPT_NUMBER, direct);
 })();

@@ -1,91 +1,14 @@
-# Ambler Application Guidelines
+## Guidelines for JavaScript Ambler Applications
 
-When building applications using `ambler.js`, please adhere to the following guidelines to ensure consistency and maintainability.
+### State and Nodes
 
-> IMPORTANT: Never modify the code in `ambler.js`!
+- **State**: The state of the application can be any JavaScript object.
+- **Nodes**: Nodes should be represented using a frozen object (`Object.freeze`) for clarity and to prevent accidental modification.
 
-## 0. Specifications
+### Node Functions
 
-The specifications of the program should be described in SPECS.md. If the file does not exist, create one reflecting the user request and ask the user to confirm they are happy with it before proceeding.
+- Each node should have a corresponding function that takes the current state as input and returns a tuple (array) containing the new state and the next node to transition to. If the next node is `null`, the `amble` function will terminate.
 
-## 1. Identify Program Stages (Nodes)
+### Dispatching
 
-First, break down your program's logic into distinct steps or stages. These will become the "nodes" of your application's flow.
-
-For example, a simple counter application might have the following stages:
-- `START`: Initializes the process.
-- `STEP`: Performs the counting action.
-- `STOP`: Terminates the process.
-
-## 2. Define Nodes
-
-Create an `object`, typically named `Node`, to define these stages as constants.
-
-```javascript
-const Node = {
-    START: 1,
-    STEP: 2,
-    STOP: 3,
-};
-```
-
-## 3. Determine Shared State
-
-Decide what data needs to be passed between the different nodes. This will be your "state" object. It can be a simple type (like a `number` for a counter) or a more complex data structure (like an `object` or a custom class).
-
-In the counter example, the state is a number representing the current count.
-
-## 4. Create Node Functions
-
-For each node, create a corresponding function that takes the current `state` as a parameter. Each function should return an `Array` containing:
-1. The (potentially modified) `state`.
-2. A value that will be used to decide which node to go to next. This can be `null` if there's only one possible next step.
-
-```javascript
-const Node = {
-    START: 1,
-    STEP: 2,
-    STOP: 3,
-};
-
-function start(state) {
-    console.log("Let's count...");
-    return [state, Node.STEP];
-}
-
-async function step(state) {
-    const count = state + 1;
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`...${count}...`);
-    return [count, Math.random() < 0.5 ? Node.STEP : Node.STOP];
-}
-
-function stop(state) {
-    console.log("...stop.");
-    return [state, null];
-}
-```
-
-## 5. Start the Application
-
-Finally, in your main execution block, call the `amble` function, passing the initial state, the starting node, and a `step` function. This function acts as the central router for your application. It takes the current `state` and `Node` as input, calls the appropriate node function and returns the updated state and the next `Node` to be called.
-
-```javascript
-const { amble } = require('./ambler');
-
-// ... (Node definitions and functions)
-
-async function direct(state, node) {
-    if (node === Node.START) {
-        return start(state);
-    } else if (node === Node.STEP) {
-        return await step(state);
-    } else if (node === Node.STOP) {
-        return stop(state);
-    }
-}
-
-(async () => {
-    await amble(0, Node.START, direct);
-})();
-```
+- An object literal should be used to map nodes to their corresponding functions. This provides a clean and efficient way to dispatch to the correct function based on the current node.
