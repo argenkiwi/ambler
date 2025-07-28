@@ -1,15 +1,16 @@
-import asyncio
 import random
+import time
+from enum import Enum, auto
 
 from ambler import amble
 
 
 # Nodes.
-class Node:
-    PROMPT_NUMBER = 0
-    START = 1
-    STEP = 2
-    STOP = 3
+class Node(Enum):
+    PROMPT_NUMBER = auto()
+    START = auto()
+    STEP = auto()
+    STOP = auto()
 
 
 def prompt_number(state):
@@ -26,9 +27,9 @@ def start(state):
     return state, Node.STEP
 
 
-async def step(state):
+def step(state):
     count = state + 1
-    await asyncio.sleep(1)
+    time.sleep(1)
     print(f"...{count}...")
     return count, Node.STEP if random.choice([True, False]) else Node.STOP
 
@@ -39,20 +40,21 @@ def stop(state):
 
 
 # Flow.
-async def direct(state, node):
-    if node == Node.PROMPT_NUMBER:
-        return prompt_number(state)
-    elif node == Node.START:
-        return start(state)
-    elif node == Node.STEP:
-        return await step(state)
-    elif node == Node.STOP:
-        return stop(state)
+node_functions = {
+    Node.PROMPT_NUMBER: prompt_number,
+    Node.START: start,
+    Node.STEP: step,
+    Node.STOP: stop,
+}
 
 
-async def main():
-    await amble(0, Node.PROMPT_NUMBER, direct)
+def direct(state, node):
+    return node_functions[node](state)
+
+
+def main():
+    amble(0, Node.PROMPT_NUMBER, direct)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
