@@ -1,3 +1,4 @@
+
 /**
  * Asynchronously traverses a node-based structure, updating a state value at each step.
  * This is the TypeScript equivalent of the provided Kotlin `amble` function.
@@ -9,7 +10,7 @@
  * and the next node (or null to terminate).
  * @returns A promise that resolves to a tuple containing the final state and a null node.
  */
-async function amble<S, N>(
+export async function amble<S, N>(
   state: S,
   node: N,
   step: (currentState: S, currentNode: N) => Promise<[S, N | null]>
