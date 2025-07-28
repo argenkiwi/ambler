@@ -4,6 +4,10 @@ When building applications using `ambler.ts`, please adhere to the following gui
 
 > IMPORTANT: Never modify the code in `ambler.ts`!
 
+## 0. Specifications
+
+The specifications of the program should be described in SPECS.md. If the file does not exist, create one reflecting the user request and ask the user to confirm they are happy with it before proceeding.
+
 ## 1. Identify Program Stages (Nodes)
 
 First, break down your program's logic into distinct steps or stages. These will become the "nodes" of your application's flow.

@@ -1,4 +1,4 @@
-async function amble(state, node, step) {
+export async function amble(state, node, step) {
     let currentNode = node;
     let currentState = state;
 
@@ -8,5 +8,3 @@ async function amble(state, node, step) {
 
     return [currentState, null];
 }
-
-module.exports = { amble };
