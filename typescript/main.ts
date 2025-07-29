@@ -1,4 +1,4 @@
-import { amble, Step } from "./ambler.ts";
+import { amble, type Step } from "./ambler.ts";
 
 // A helper function for delays, equivalent to Kotlin's `delay`
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -33,9 +33,6 @@ const Stop: Step<number> = {
 };
 
 // --- Main Execution ---
-// This async function serves as the entry point, similar to `runBlocking` in the Kotlin example.
-async function main() {
+if (import.meta.main) {
   await amble(0, Start);
 }
-
-main()
