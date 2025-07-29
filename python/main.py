@@ -1,60 +1,50 @@
+import asyncio
 import random
-import time
-from enum import Enum, auto
+from typing import Tuple, Optional
 
-from ambler import amble
-
-
-# Nodes.
-class Node(Enum):
-    PROMPT_NUMBER = auto()
-    START = auto()
-    STEP = auto()
-    STOP = auto()
+from ambler import amble, Step
 
 
-def prompt_number(state):
-    try:
-        num = int(input("Enter a number to start counting from: "))
-        return num, Node.START
-    except ValueError:
-        print("Invalid input. Please enter an integer.")
-        return state, Node.PROMPT_NUMBER
+# --- State Machine Step Definitions ---
+
+class Start(Step[int]):
+    async def run(self, state: int) -> Tuple[int, Optional[Step[int]]]:
+        print(f"Starting from {state}...")
+        # Note: We return the singleton instance `Count_step` here.
+        return state, Count_step
 
 
-def start(state):
-    print(f"Let's count from {state}...")
-    return state, Node.STEP
+class Count(Step[int]):
+    async def run(self, state: int) -> Tuple[int, Optional[Step[int]]]:
+        count = state + 1
+        await asyncio.sleep(1)  # Equivalent to Kotlin's `delay`.
+        print(f"...{count}...")
+        # Randomly choose the next step.
+        next_step = Count_step if random.choice([True, False]) else Stop_step
+        return count, next_step
 
 
-def step(state):
-    count = state + 1
-    time.sleep(1)
-    print(f"...{count}...")
-    return count, Node.STEP if random.choice([True, False]) else Node.STOP
+class Stop(Step[int]):
+    async def run(self, state: int) -> Tuple[int, Optional[Step[int]]]:
+        print("...and stop.")
+        # Return `None` as the next step to terminate the loop.
+        return state, None
 
 
-def stop(state):
-    print("...stop.")
-    return state, None
+# Create singleton instances of each step. This is the equivalent of `data object`.
+Start_step = Start()
+Count_step = Count()
+Stop_step = Stop()
 
 
-# Flow.
-node_functions = {
-    Node.PROMPT_NUMBER: prompt_number,
-    Node.START: start,
-    Node.STEP: step,
-    Node.STOP: stop,
-}
+# --- Main Execution ---
 
-
-def direct(state, node):
-    return node_functions[node](state)
-
-
-def main():
-    amble(0, Node.PROMPT_NUMBER, direct)
+async def main():
+    """The main asynchronous entry point for the program."""
+    await amble(0, Start_step)
 
 
 if __name__ == "__main__":
-    main()
+    # `asyncio.run()` is the standard way to run a top-level async function.
+    # It manages the event loop and is functionally similar to `runBlocking`.
+    asyncio.run(main())
