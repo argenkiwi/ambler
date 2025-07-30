@@ -1,10 +1,13 @@
-class Next(val run: suspend () -> Next?)
-
-suspend fun amble(initial: Next?) {
-    var next = initial
-    while (next != null) {
-        next = next.run()
-    }
+class Next<S>(
+    private val next: suspend (S) -> Next<S>?,
+    private val state: S
+) {
+    suspend operator fun invoke() = next(state)
 }
 
-suspend fun amble(initial: suspend () -> Next?) = amble(Next(initial))
+suspend fun amble(initial: Next<*>) {
+    var next: Next<*>? = initial
+    while (next != null) {
+        next = next()
+    }
+}

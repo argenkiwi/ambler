@@ -1,45 +1,26 @@
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
-fun promptForNumber(): Int {
-    while (true) {
-        print("Enter a starting number: ")
-        val input = readlnOrNull()
-        if (input != null) {
-            val number = input.toIntOrNull()
-            if (number != null) {
-                return number
-            }
-        }
-        println("Invalid number, please try again.")
-    }
-}
-
-fun promptNumberNode(): Next? {
+fun promptNumberNode(): Next<Int> {
     val number = promptForNumber()
-    return Next { startNode(number) }
+    return Next(::stepNode, number)
 }
 
-fun startNode(state: Int): Next? {
-    println("Starting count from $state")
-    return Next { stepNode(state) }
-}
-
-suspend fun stepNode(state: Int): Next? {
-    val newState = state + 1
-    println("Count: $newState")
+suspend fun stepNode(state: Int): Next<Int>? {
+    println("Count: $state")
     delay(1000)
+    val newState = state + 1
     return when {
-        Random.nextDouble() > 0.5 -> Next { stepNode(newState) }
-        else -> Next { stopNode() }
+        Random.nextDouble() > 0.5 -> Next(::stepNode, newState)
+        else -> Next(::stopNode, newState)
     }
 }
 
-fun stopNode(): Next? {
-    println("Stopping count.")
+fun stopNode(state: Int): Next<Int>? {
+    println("Stopping count at $state.")
     return null
 }
 
 suspend fun main() {
-    amble { promptNumberNode() }
+    amble(promptNumberNode())
 }
