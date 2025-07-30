@@ -1,16 +1,17 @@
 export class Next {
-    constructor(run) {
-        this.run = run;
+    constructor(nextFunc, state) {
+        this.nextFunc = nextFunc;
+        this.state = state;
+    }
+
+    run() {
+        return this.nextFunc(this.state);
     }
 }
 
-export async function amble(initial) {
+export function amble(initial) {
     let next = initial;
     while (next) {
-        next = await next.run();
+        next = next.run();
     }
-}
-
-export function ambleFrom(initial) {
-    return amble(new Next(initial));
 }
