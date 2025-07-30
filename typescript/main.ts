@@ -1,52 +1,27 @@
-import { ambleFrom, Next } from "./ambler.ts";
+import { Next, amble } from "./ambler.ts";
+import { sleep, promptForNumber} from "./utils.ts"
 
-const promptForNumber = (): Promise<number> => {
-    return new Promise((resolve) => {
-        const ask = () => {
-            const input = prompt("Enter a starting number:");
-            if (input === null) {
-                resolve(0);
-                return;
-            }
-            const number = parseInt(input, 10);
-            if (!isNaN(number)) {
-                resolve(number);
-            } else {
-                console.log("Invalid number, please try again.");
-                ask();
-            }
-        };
-        ask();
-    });
-};
+function promptNumberNode(): Next<number> {
+    const number = promptForNumber();
+    return new Next(stepNode, number);
+}
 
-const promptNumberNode = (state: number): Promise<Next | null> => {
-    return new Promise(async (resolve) => {
-        const number = await promptForNumber();
-        resolve(new Next(() => startNode(number)));
-    });
-};
-
-const startNode = (state: number): Promise<Next | null> => {
-    console.log(`Starting count from ${state}`);
-    return Promise.resolve(new Next(() => stepNode(state)));
-};
-
-const stepNode = (state: number): Promise<Next | null> => {
+function stepNode(state: number): Next<any> | null {
+    console.log(`Count: ${state}`);
+    sleep(1000);
     const newState = state + 1;
-    console.log(`Count: ${newState}`);
     if (Math.random() > 0.5) {
-        return Promise.resolve(new Next(() => stepNode(newState)));
+        return new Next(stepNode, newState);
     } else {
-        return Promise.resolve(new Next(() => stopNode(newState)));
+        return new Next(stopNode, newState);
     }
-};
+}
 
-const stopNode = (state: number): Promise<Next | null> => {
-    console.log("Stopping count.");
-    return Promise.resolve(null);
-};
+function stopNode(state: number): Next<any> | null {
+    console.log(`Stopping count at ${state}.`);
+    return null;
+}
 
 if (import.meta.main) {
-    ambleFrom(() => promptNumberNode(0));
+    amble(promptNumberNode());
 }

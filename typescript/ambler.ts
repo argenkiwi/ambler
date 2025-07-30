@@ -1,14 +1,16 @@
-export class Next {
-    constructor(public run: () => Promise<Next | null>) {}
-}
+export type Nextable<S> = (state: S) => Next<any> | null;
 
-export async function amble(initial: Next | null): Promise<void> {
-    let next = initial;
-    while (next) {
-        next = await next.run();
+export class Next<S> {
+    constructor(private nextFunc: Nextable<S>, private state: S) {}
+
+    run(): Next<any> | null {
+        return this.nextFunc(this.state);
     }
 }
 
-export async function ambleFrom(initial: () => Promise<Next | null>): Promise<void> {
-    await amble(new Next(initial));
+export function amble<S>(initial: Next<S>): void {
+    let next: Next<any> | null = initial;
+    while (next) {
+        next = next.run();
+    }
 }
