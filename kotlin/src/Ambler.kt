@@ -7,4 +7,4 @@ suspend fun amble(initial: Next?) {
     }
 }
 
-suspend fun amble(initial: suspend () -> Next) = amble(Next(initial))
+suspend fun amble(initial: suspend () -> Next?) = amble(Next(initial))
