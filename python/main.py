@@ -1,8 +1,8 @@
-import asyncio
+import time
 import random
 from typing import Optional
 
-from ambler import Next, amble_from
+from ambler import Next, amble
 
 def prompt_for_number() -> int:
     while True:
@@ -11,25 +11,22 @@ def prompt_for_number() -> int:
         except ValueError:
             print("Invalid number, please try again.")
 
-async def prompt_number_node(state: int) -> Optional[Next]:
+def prompt_number_node() -> Next:
     number = prompt_for_number()
-    return Next(lambda: start_node(number))
+    return Next(step_node, number)
 
-async def start_node(state: int) -> Optional[Next]:
-    print(f"Starting count from {state}")
-    return Next(lambda: step_node(state))
-
-async def step_node(state: int) -> Optional[Next]:
+def step_node(state: int) -> Optional[Next]:
+    print(f"Count: {state}")
+    time.sleep(1)
     new_state = state + 1
-    print(f"Count: {new_state}")
     if random.random() > 0.5:
-        return Next(lambda: step_node(new_state))
+        return Next(step_node, new_state)
     else:
-        return Next(lambda: stop_node(new_state))
+        return Next(stop_node, new_state)
 
-async def stop_node(state: int) -> Optional[Next]:
-    print("Stopping count.")
+def stop_node(state: int) -> Optional[Next]:
+    print(f"Stopping count at {state}.")
     return None
 
 if __name__ == "__main__":
-    asyncio.run(amble_from(lambda: prompt_number_node(0)))
+    amble(prompt_number_node())

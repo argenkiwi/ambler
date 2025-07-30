@@ -1,13 +1,14 @@
-from typing import Optional, Callable, Awaitable
+from typing import Any, Callable, Optional
 
 class Next:
-    def __init__(self, run: Callable[[], Awaitable[Optional['Next']]]):
-        self.run = run
+    def __init__(self, next_func: Callable[..., Any], state: Any):
+        self.next_func = next_func
+        self.state = state
 
-async def amble(initial: Optional[Next]):
+    def __call__(self) -> Optional['Next']:
+        return self.next_func(self.state)
+
+def amble(initial: Next):
     next_step = initial
     while next_step is not None:
-        next_step = await next_step.run()
-
-async def amble_from(initial: Callable[[], Awaitable[Optional['Next']]]):
-    await amble(Next(initial))
+        next_step = next_step()
