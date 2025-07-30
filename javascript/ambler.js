@@ -1,10 +1,16 @@
-export function amble(state, node, step) {
-    let currentNode = node;
-    let currentState = state;
-
-    while (currentNode) {
-        [currentState, currentNode] = step(currentState, currentNode);
+export class Next {
+    constructor(run) {
+        this.run = run;
     }
+}
 
-    return [currentState, null];
+export async function amble(initial) {
+    let next = initial;
+    while (next) {
+        next = await next.run();
+    }
+}
+
+export function ambleFrom(initial) {
+    return amble(new Next(initial));
 }

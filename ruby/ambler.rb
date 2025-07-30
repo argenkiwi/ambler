@@ -1,14 +1,19 @@
 
-def resolve(result, direct)
-  state, action = result
-  [state, direct.call(action)]
+class Next
+  attr_reader :run
+
+  def initialize(&run)
+    @run = run
+  end
 end
 
-def amble(state, edge, follow)
-  current_state = state
-  current_edge = edge
-  while current_edge
-    current_state, current_edge = follow.call(current_state, current_edge)
+def amble(initial)
+  nxt = initial
+  while nxt
+    nxt = nxt.run.call
   end
-  [current_state, nil]
+end
+
+def amble_from(&initial)
+  amble(Next.new(&initial))
 end

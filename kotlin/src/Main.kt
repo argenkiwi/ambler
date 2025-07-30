@@ -1,33 +1,44 @@
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 
-class Start : Step<Int> {
-    override suspend fun invoke(state: Int): Pair<Int, Step<Int>?> {
-        println("Starting from $state...")
-        return state to Count()
-    }
-}
-
-class Count() : Step<Int> {
-    override suspend fun invoke(state: Int): Pair<Int, Step<Int>?> {
-        val count = state + 1
-        delay(1000)
-        println("...$count...")
-        return count to when {
-            Random.nextBoolean() -> this
-            else -> Stop()
+fun promptForNumber(): Int {
+    while (true) {
+        print("Enter a starting number: ")
+        val input = readlnOrNull()
+        if (input != null) {
+            val number = input.toIntOrNull()
+            if (number != null) {
+                return number
+            }
         }
+        println("Invalid number, please try again.")
     }
 }
 
-class Stop() : Step<Int> {
-    override suspend fun invoke(state: Int): Pair<Int, Step<Int>?> {
-        println("...and stop.")
-        return state to null
+suspend fun promptNumberNode(state: Int): Next? {
+    val number = promptForNumber()
+    return Next { startNode(number) }
+}
+
+suspend fun startNode(state: Int): Next? {
+    println("Starting count from $state")
+    return Next { stepNode(state) }
+}
+
+suspend fun stepNode(state: Int): Next? {
+    val newState = state + 1
+    println("Count: $newState")
+    return if (Random.nextDouble() > 0.5) {
+        Next { stepNode(newState) }
+    } else {
+        Next { stopNode(newState) }
     }
 }
 
-fun main() {
-    runBlocking { amble(0, Start()) }
+suspend fun stopNode(state: Int): Next? {
+    println("Stopping count.")
+    return null
+}
+
+suspend fun main() {
+    amble { promptNumberNode(0) }
 }

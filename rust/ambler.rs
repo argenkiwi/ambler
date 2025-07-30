@@ -1,23 +1,34 @@
 
 use std::future::Future;
+use std::pin::Pin;
 
-pub fn resolve<S, A, D>(result: (S, A), direct: impl Fn(A) -> D) -> (S, D) {
-    let (state, action) = result;
-    (state, direct(action))
+pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+pub struct Next<'a> {
+    pub run: Box<dyn Fn() -> BoxFuture<'a, Option<Next<'a>>> + Send + Sync + 'a>,
 }
 
-pub async fn amble<S, E, F, Fut>(state: S, edge: E, follow: F) -> (S, Option<E>)
-where
-    F: Fn(S, E) -> Fut,
-    Fut: Future<Output = (S, Option<E>)>,{
-    let mut current_state = state;
-    let mut current_edge = Some(edge);
-
-    while let Some(e) = current_edge {
-        let (s, next_edge) = follow(current_state, e).await;
-        current_state = s;
-        current_edge = next_edge;
+impl<'a> Next<'a> {
+    pub fn new<F>(run: F) -> Self
+    where
+        F: Fn() -> BoxFuture<'a, Option<Next<'a>>> + Send + Sync + 'a,
+    {
+        Next {
+            run: Box::new(run),
+        }
     }
+}
 
-    (current_state, None)
+pub async fn amble<'a>(initial: Option<Next<'a>>) {
+    let mut next = initial;
+    while let Some(n) = next {
+        next = (n.run)().await;
+    }
+}
+
+pub async fn amble_from<'a, F>(initial: F)
+where
+    F: Fn() -> BoxFuture<'a, Option<Next<'a>>> + Send + Sync + 'a,
+{
+    amble(Some(Next::new(initial))).await
 }

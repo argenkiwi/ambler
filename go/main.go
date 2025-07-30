@@ -1,55 +1,60 @@
 package main
 
 import (
-	"context"
+	"bufio"
 	"fmt"
 	"math/rand"
-	"time"
+	"os"
+	"strconv"
+	"strings"
 
-	"/home/argenkiwi/Code/ambler/go"
+	"ambler"
 )
 
-type Node int
-
-const (
-	NodeStart Node = iota
-	NodeStep
-	NodeStop
-)
-
-func start(state int) (int, any) {
-	fmt.Println("Let's count...")
-	return state, nil
+func promptForNumber() (int, error) {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("Enter a starting number: ")
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return 0, err
+		}
+		number, err := strconv.Atoi(strings.TrimSpace(input))
+		if err == nil {
+			return number, nil
+		}
+		fmt.Println("Invalid number, please try again.")
+	}
 }
 
-func step(state int) (int, bool) {
-	count := state + 1
-	fmt.Printf("...%d...\n", count)
-	return count, rand.Intn(2) == 0
+func promptNumberNode(state int) (*ambler.Next, error) {
+	number, err := promptForNumber()
+	if err != nil {
+		return nil, err
+	}
+	return &ambler.Next{Run: func() (*ambler.Next, error) { return startNode(number) }}, nil
 }
 
-func stop(state int) (int, any) {
-	fmt.Println("...stop.")
-	return state, nil
+func startNode(state int) (*ambler.Next, error) {
+	fmt.Printf("Starting count from %d\n", state)
+	return &ambler.Next{Run: func() (*ambler.Next, error) { return stepNode(state) }}, nil
+}
+
+func stepNode(state int) (*ambler.Next, error) {
+	newState := state + 1
+	fmt.Printf("Count: %d\n", newState)
+	if rand.Float64() > 0.5 {
+		return &ambler.Next{Run: func() (*ambler.Next, error) { return stepNode(newState) }}, nil
+	} else {
+		return &ambler.Next{Run: func() (*ambler.Next, error) { return stopNode(newState) }}, nil
+	}
+}
+
+func stopNode(state int) (*ambler.Next, error) {
+	fmt.Println("Stopping count.")
+	return nil, nil
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-	ambler.Amble(context.Background(), 0, NodeStart, func(ctx context.Context, state int, node Node) (int, Node, error) {
-		switch node {
-		case NodeStart:
-			return ambler.Resolve(struct{State int; Action any}{start(state)}, func(_ any) Node { return NodeStep })
-		case NodeStep:
-			return ambler.Resolve(struct{State int; Action bool}{step(state)}, func(shouldContinue bool) Node {
-				if shouldContinue {
-					return NodeStep
-				} else {
-					return NodeStop
-				}
-			})
-		case NodeStop:
-			return ambler.Resolve(struct{State int; Action any}{stop(state)}, func(_ any) Node { return -1 })
-		}
-		return state, -1, nil
-	})
+	ambler.AmbleFromFunc(func() (*ambler.Next, error) { return promptNumberNode(0) })
 }

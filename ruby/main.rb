@@ -1,38 +1,37 @@
 require_relative 'ambler'
 
-# Nodes.
-module Node
-  START = 1
-  STEP = 2
-  STOP = 3
-end
-
-def start(state)
-  puts "Let's count..."
-  [state, nil]
-end
-
-def step(state)
-  count = state + 1
-  puts "...#{count}..."
-  [count, [true, false].sample]
-end
-
-def stop(state)
-  puts "...stop."
-  [state, nil]
-end
-
-# Flow.
-def direct(state, node)
-  case node
-  when Node::START
-    resolve(start(state), ->(_) { Node::STEP })
-  when Node::STEP
-    resolve(step(state), ->(should_continue) { should_continue ? Node::STEP : Node::STOP })
-  when Node::STOP
-    resolve(stop(state), ->(_) { nil })
+def prompt_for_number
+  loop do
+    print 'Enter a starting number: '
+    input = gets.chomp
+    return input.to_i if input.match?(/^\d+$/)
+    puts 'Invalid number, please try again.'
   end
 end
 
-amble(0, Node::START, method(:direct))
+def prompt_number_node(_state)
+  number = prompt_for_number
+  Next.new { start_node(number) }
+end
+
+def start_node(state)
+  puts "Starting count from #{state}"
+  Next.new { step_node(state) }
+end
+
+def step_node(state)
+  new_state = state + 1
+  puts "Count: #{new_state}"
+  if rand > 0.5
+    Next.new { step_node(new_state) }
+  else
+    Next.new { stop_node(new_state) }
+  end
+end
+
+def stop_node(_state)
+  puts 'Stopping count.'
+  nil
+end
+
+amble_from { prompt_number_node(0) }

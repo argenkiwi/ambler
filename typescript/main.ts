@@ -1,38 +1,52 @@
-import { amble, type Step } from "./ambler.ts";
+import { ambleFrom, Next } from "./ambler.ts";
 
-// A helper function for delays, equivalent to Kotlin's `delay`
-const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-
-// --- State Machine Step Definitions ---
-// These constant objects are equivalent to Kotlin's `data object`s.
-const Start: Step<number> = {
-  async run(state) {
-    console.log(`Starting from ${state}...`);
-    // Returns the same state and transitions to the Count step
-    return [state, Count];
-  },
+const promptForNumber = (): Promise<number> => {
+    return new Promise((resolve) => {
+        const ask = () => {
+            const input = prompt("Enter a starting number:");
+            if (input === null) {
+                resolve(0);
+                return;
+            }
+            const number = parseInt(input, 10);
+            if (!isNaN(number)) {
+                resolve(number);
+            } else {
+                console.log("Invalid number, please try again.");
+                ask();
+            }
+        };
+        ask();
+    });
 };
 
-const Count: Step<number> = {
-  async run(state) {
-    const count = state + 1;
-    await delay(1000);
-    console.log(`...${count}...`);
-    // Randomly decide whether to continue counting or stop
-    const nextStep = Math.random() < 0.5 ? Count : Stop;
-    return [count, nextStep];
-  },
+const promptNumberNode = (state: number): Promise<Next | null> => {
+    return new Promise(async (resolve) => {
+        const number = await promptForNumber();
+        resolve(new Next(() => startNode(number)));
+    });
 };
 
-const Stop: Step<number> = {
-  async run(state) {
-    console.log(`...and stop.`);
-    // Returns the final state and `null` to end the process
-    return [state, null];
-  },
+const startNode = (state: number): Promise<Next | null> => {
+    console.log(`Starting count from ${state}`);
+    return Promise.resolve(new Next(() => stepNode(state)));
 };
 
-// --- Main Execution ---
+const stepNode = (state: number): Promise<Next | null> => {
+    const newState = state + 1;
+    console.log(`Count: ${newState}`);
+    if (Math.random() > 0.5) {
+        return Promise.resolve(new Next(() => stepNode(newState)));
+    } else {
+        return Promise.resolve(new Next(() => stopNode(newState)));
+    }
+};
+
+const stopNode = (state: number): Promise<Next | null> => {
+    console.log("Stopping count.");
+    return Promise.resolve(null);
+};
+
 if (import.meta.main) {
-  await amble(0, Start);
+    ambleFrom(() => promptNumberNode(0));
 }
