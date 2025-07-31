@@ -5,7 +5,7 @@ from typing import Optional
 from ambler import Next, amble
 
 
-def def start(state: int) -> Next:
+def start(state: int) -> Next:
     text = input("Enter a starting number (or press Enter for default): ")
     if not text:
         print("Using default starting number.")
