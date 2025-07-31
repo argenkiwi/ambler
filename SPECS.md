@@ -8,15 +8,15 @@ The shared state is an integer representing the current count.
 
 ## Steps
 
-### `START`
+### Start
 - This is the initial step of the application.
 - Prompts the user to enter a starting number for the count.
 - If the number entered is valid, it proceeds to `COUNT`.
 - If the number entered is invalid, it displays an error message and proceeds to `START`.
 
-### `COUNT`
+### Count
 - Prints the current count, waits for a second and increments the counter.
 - It randomly decides whether to transition to `COUNT` or to `STOP`.
 
-### `STOP`
+### Stop
 -  Displays the final count and terminates the counting process.

@@ -5,8 +5,8 @@ class Next<S>(
     suspend operator fun invoke() = next(state)
 }
 
-suspend fun amble(initial: Next<*>) {
-    var next: Next<*>? = initial
+suspend fun <S> amble(next: (S) -> Next<S>?, state: S) {
+    var next = next(state)
     while (next != null) {
         next = next()
     }
