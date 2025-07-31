@@ -3,7 +3,7 @@ This is a sample counter application that uses the `amble` function to manage it
 To run the application, execute the following command in your terminal:
 
 ```bash
-deno main.ts
+ruby main.rb
 ```
 
 This will start the counter, which will prompt you for a starting number and then begin counting, with a random chance of stopping at each step.
