@@ -1,3 +1,4 @@
+mod ambler;
 use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
