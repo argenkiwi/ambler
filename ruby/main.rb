@@ -6,12 +6,12 @@ def start(state)
 
   if input.empty?
     puts 'Using default starting number.'
-    Next.new { count(state) }
+    Next.new(method(:count), state)
   elsif input.match?(/^\d+$/)
-    Next.new { count(input.to_i) }
+    Next.new(method(:count), input.to_i)
   else
     puts 'Invalid number, please try again.'
-    Next.new { start(state) }
+    Next.new(method(:start), state)
   end
 end
 
@@ -20,9 +20,9 @@ def count(state)
   sleep(1)
   new_state = state + 1
   if rand > 0.5
-    Next.new { count(new_state) }
+    Next.new(method(:count), new_state)
   else
-    Next.new { stop(new_state) }
+    Next.new(method(:stop), new_state)
   end
 end
 
