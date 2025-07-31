@@ -7,54 +7,50 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"ambler"
 )
 
-func promptForNumber() (int, error) {
+func start(state int) (*ambler.Next, error) {
 	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("Enter a starting number: ")
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return 0, err
-		}
-		number, err := strconv.Atoi(strings.TrimSpace(input))
-		if err == nil {
-			return number, nil
-		}
-		fmt.Println("Invalid number, please try again.")
-	}
-}
-
-func promptNumberNode(state int) (*ambler.Next, error) {
-	number, err := promptForNumber()
+	fmt.Print("Enter a starting number (or press Enter for default): ")
+	input, err := reader.ReadString('\n')
 	if err != nil {
 		return nil, err
 	}
-	return &ambler.Next{Run: func() (*ambler.Next, error) { return startNode(number) }}, nil
+	input = strings.TrimSpace(input)
+
+	if input == "" {
+		fmt.Println("Using default starting number.")
+		return &ambler.Next{Run: func() (*ambler.Next, error) { return count(state) }}, nil
+	}
+
+	number, err := strconv.Atoi(input)
+	if err != nil {
+		fmt.Println("Invalid number, please try again.")
+		return &ambler.Next{Run: func() (*ambler.Next, error) { return start(state) }}, nil
+	}
+
+	return &ambler.Next{Run: func() (*ambler.Next, error) { return count(number) }}, nil
 }
 
-func startNode(state int) (*ambler.Next, error) {
-	fmt.Printf("Starting count from %d\n", state)
-	return &ambler.Next{Run: func() (*ambler.Next, error) { return stepNode(state) }}, nil
-}
-
-func stepNode(state int) (*ambler.Next, error) {
+func count(state int) (*ambler.Next, error) {
+	fmt.Printf("Count: %d\n", state)
+	time.Sleep(1 * time.Second)
 	newState := state + 1
-	fmt.Printf("Count: %d\n", newState)
 	if rand.Float64() > 0.5 {
-		return &ambler.Next{Run: func() (*ambler.Next, error) { return stepNode(newState) }}, nil
+		return &ambler.Next{Run: func() (*ambler.Next, error) { return count(newState) }}, nil
 	} else {
-		return &ambler.Next{Run: func() (*ambler.Next, error) { return stopNode(newState) }}, nil
+		return &ambler.Next{Run: func() (*ambler.Next, error) { return stop(newState) }}, nil
 	}
 }
 
-func stopNode(state int) (*ambler.Next, error) {
-	fmt.Println("Stopping count.")
+func stop(state int) (*ambler.Next, error) {
+	fmt.Printf("Stopping count at %d.\n", state)
 	return nil, nil
 }
 
 func main() {
-	ambler.AmbleFromFunc(func() (*ambler.Next, error) { return promptNumberNode(0) })
+	ambler.Amble(&ambler.Next{Run: func() (*ambler.Next, error) { return start(0) }})
 }

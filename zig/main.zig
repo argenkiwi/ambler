@@ -1,80 +1,78 @@
 const std = @import("std");
 const ambler = @import("ambler.zig");
 
-fn promptForNumber() !i32 {
-    const stdin = std.io.getStdIn().reader();
+fn start(state: i32) !?*const ambler.Next {
     const stdout = std.io.getStdOut().writer();
+    try stdout.print("Enter a starting number (or press Enter for default): ", .{});
     var buffer: [100]u8 = undefined;
+    const input = try std.io.getStdIn().reader().readUntilDelimiterOrEof(&buffer, '\n');
 
-    while (true) {
-        try stdout.print("Enter a starting number: ", .{});
-        const input = try stdin.readUntilDelimiterOrEof(&buffer, '\n');
-        if (input) |i| {
-            const trimmed = std.mem.trim(u8, i, " \t\r\n");
+    if (input) |i| {
+        const trimmed = std.mem.trim(u8, i, " \t\r\n");
+        if (trimmed.len == 0) {
+            try stdout.print("Using default starting number.\n", .{});
+            const next = ambler.Next{ .run = struct {
+                pub fn run() !?*const ambler.Next {
+                    return count(state);
+                }
+            }.run };
+            return &next;
+        } else {
             const number = std.fmt.parseInt(i32, trimmed, 10);
             if (number) |n| {
-                return n;
+                const next = ambler.Next{ .run = struct {
+                    pub fn run() !?*const ambler.Next {
+                        return count(n);
+                    }
+                }.run };
+                return &next;
             } else |_| {
                 try stdout.print("Invalid number, please try again.\n", .{});
+                const next = ambler.Next{ .run = struct {
+                    pub fn run() !?*const ambler.Next {
+                        return start(state);
+                    }
+                }.run };
+                return &next;
             }
-        } else {
-            return error.EndOfStream;
         }
+    } else {
+        return error.EndOfStream;
     }
 }
 
-fn promptNumberNode(state: i32) !?*const ambler.Next {
-    _ = state;
-    const number = try promptForNumber();
-    const next = ambler.Next{ .run = struct { 
-        pub fn run() !?*const ambler.Next {
-            return startNode(number);
-        }
-    }.run };
-    return &next;
-}
-
-fn startNode(state: i32) !?*const ambler.Next {
-    std.debug.print("Starting count from {d}\n", .{state});
-    const next = ambler.Next{ .run = struct {
-        pub fn run() !?*const ambler.Next {
-            return stepNode(state);
-        }
-    }.run };
-    return &next;
-}
-
-fn stepNode(state: i32) !?*const ambler.Next {
+fn count(state: i32) !?*const ambler.Next {
+    std.debug.print("Count: {d}\n", .{state});
+    std.time.sleep(1 * std.time.ns_per_s);
     const new_state = state + 1;
-    std.debug.print("Count: {d}\n", .{new_state});
     var rand = std.rand.DefaultPrng.init(0);
     if (rand.random().float(f64) > 0.5) {
         const next = ambler.Next{ .run = struct {
             pub fn run() !?*const ambler.Next {
-                return stepNode(new_state);
+                return count(new_state);
             }
         }.run };
         return &next;
     } else {
         const next = ambler.Next{ .run = struct {
             pub fn run() !?*const ambler.Next {
-                return stopNode(new_state);
+                return stop(new_state);
             }
         }.run };
         return &next;
     }
 }
 
-fn stopNode(state: i32) !?*const ambler.Next {
-    _ = state;
-    std.debug.print("Stopping count.\n", .{});
+fn stop(state: i32) !?*const ambler.Next {
+    std.debug.print("Stopping count at {d}.\n", .{state});
     return null;
 }
 
 pub fn main() !void {
-    try ambler.ambleFrom(struct{
+    const initial = ambler.Next{ .run = struct {
         pub fn run() !?*const ambler.Next {
-            return promptNumberNode(0);
+            return start(0);
         }
-    }.run);
+    }.run };
+    try ambler.amble(&initial);
 }
