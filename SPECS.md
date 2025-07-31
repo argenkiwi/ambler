@@ -11,6 +11,7 @@ The shared state is an integer representing the current count.
 ### Start
 - This is the initial step of the application.
 - Prompts the user to enter a starting number for the count.
+- If the input is empty, it proceeds to `COUNT` using the default value. 
 - If the number entered is valid, it proceeds to `COUNT`.
 - If the number entered is invalid, it displays an error message and proceeds to `START`.
 

@@ -2,8 +2,22 @@ import kotlinx.coroutines.delay
 import kotlin.random.Random
 
 fun start(state: Int): Next<Int> {
-    val number = promptForNumber()
-    return Next(::count, number)
+    print("Enter a starting number (or press Enter for default): ")
+    val input = readlnOrNull()
+
+    return when {
+        input.isNullOrEmpty() -> {
+            println("Using default starting number.")
+            Next(::count, state)
+        }
+        input.toIntOrNull() != null -> {
+            Next(::count, input.toInt())
+        }
+        else -> {
+            println("Invalid number, please try again.")
+            Next(::start, state)
+        }
+    }
 }
 
 suspend fun count(state: Int): Next<Int>? {
