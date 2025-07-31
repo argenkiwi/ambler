@@ -9,9 +9,9 @@ export class Next {
     }
 }
 
-export function amble(initial) {
-    let next = initial;
+export async function amble(initial, state) {
+    let next = await initial(state);
     while (next) {
-        next = next.run();
+        next = await next.run();
     }
 }

@@ -4,9 +4,12 @@ type Next struct {
 	Run func() (*Next, error)
 }
 
-func Amble(initial *Next) error {
-	next := initial
-	var err error
+func Amble(initial func(int) (*Next, error), state int) error {
+	next, err := initial(state)
+	if err != nil {
+		return err
+	}
+
 	for next != nil {
 		next, err = next.Run()
 		if err != nil {
@@ -14,8 +17,4 @@ func Amble(initial *Next) error {
 		}
 	}
 	return nil
-}
-
-func AmbleFromFunc(initial func() (*Next, error)) error {
-	return Amble(&Next{Run: initial})
 }

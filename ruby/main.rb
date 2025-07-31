@@ -31,4 +31,4 @@ def stop(state)
   nil
 end
 
-amble(Next.new { start(0) })
+amble(method(:start), 0)

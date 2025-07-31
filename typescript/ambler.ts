@@ -8,8 +8,8 @@ export class Next<S> {
     }
 }
 
-export function amble<S>(initial: Next<S>): void {
-    let next: Next<any> | null = initial;
+export function amble<S>(initial: Nextable<S>, state: S): void {
+    let next: Next<any> | null = initial(state);
     while (next) {
         next = next.run();
     }

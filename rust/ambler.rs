@@ -19,16 +19,12 @@ impl<'a> Next<'a> {
     }
 }
 
-pub async fn amble<'a>(initial: Option<Next<'a>>) {
-    let mut next = initial;
+pub async fn amble<'a, S, F>(initial: F, state: S)
+where
+    F: Fn(S) -> BoxFuture<'a, Option<Next<'a>>> + Send + Sync + 'a,
+{
+    let mut next = initial(state).await;
     while let Some(n) = next {
         next = (n.run)().await;
     }
-}
-
-pub async fn amble_from<'a, F>(initial: F)
-where
-    F: Fn() -> BoxFuture<'a, Option<Next<'a>>> + Send + Sync + 'a,
-{
-    amble(Some(Next::new(initial))).await
 }

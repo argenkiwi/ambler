@@ -33,4 +33,4 @@ def stop(state: int) -> Optional[Next]:
 
 
 if __name__ == "__main__":
-    amble(Next(start, 0))
+    amble(start, 0)

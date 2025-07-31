@@ -8,7 +8,7 @@ class Next:
     def __call__(self) -> Optional['Next']:
         return self.next_func(self.state)
 
-def amble(initial: Next):
-    next_step = initial
+def amble(initial: Callable[..., Optional[Next]], state: Any):
+    next_step = initial(state)
     while next_step is not None:
         next_step = next_step()

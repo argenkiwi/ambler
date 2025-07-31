@@ -7,13 +7,9 @@ class Next
   end
 end
 
-def amble(initial)
-  nxt = initial
+def amble(initial, state)
+  nxt = initial.call(state)
   while nxt
     nxt = nxt.run.call
   end
-end
-
-def amble_from(&initial)
-  amble(Next.new(&initial))
 end

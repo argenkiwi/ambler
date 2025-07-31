@@ -48,5 +48,5 @@ fn stop(state: i32) -> BoxFuture<'static, Option<Next<'static>>> {
 
 #[tokio::main]
 async fn main() {
-    amble(Some(Next::new(|| start(0)))).await;
+    amble(start, 0).await;
 }

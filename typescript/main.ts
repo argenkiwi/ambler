@@ -35,5 +35,5 @@ function stop(state: number): Next<any> | null {
 }
 
 if (import.meta.main) {
-    amble(new Next(start, 0));
+    amble(start, 0);
 }

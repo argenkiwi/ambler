@@ -69,10 +69,5 @@ fn stop(state: i32) !?*const ambler.Next {
 }
 
 pub fn main() !void {
-    const initial = ambler.Next{ .run = struct {
-        pub fn run() !?*const ambler.Next {
-            return start(0);
-        }
-    }.run };
-    try ambler.amble(&initial);
+    try ambler.amble(&start, 0);
 }

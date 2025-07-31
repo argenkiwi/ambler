@@ -52,5 +52,5 @@ func stop(state int) (*ambler.Next, error) {
 }
 
 func main() {
-	ambler.Amble(&ambler.Next{Run: func() (*ambler.Next, error) { return start(0) }})
+	ambler.Amble(start, 0)
 }

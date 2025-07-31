@@ -48,11 +48,8 @@ function stop(state) {
 }
 
 async function main() {
-    let next = new Next(start, 0);
-    while (next) {
-        const result = await next.run();
-        next = result;
-    }
+    await amble(start, 0);
+    rl.close();
 }
 
 main();
