@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"ambler"
+	"ambler/counter/ambler"
 )
 
 func start(state int) (*ambler.Next, error) {
