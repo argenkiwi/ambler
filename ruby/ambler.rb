@@ -1,20 +1,29 @@
-
-class Next
-  attr_reader :next_func, :state
-
-  def initialize(next_func, state)
-    @next_func = next_func
-    @state = state
+module Ambler
+  class Step
+    def resolve(state)
+      raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+    end
   end
 
-  def call
-    @next_func.call(@state)
-  end
-end
+  class Next < Step
+    def initialize(delegate)
+      @delegate = delegate
+    end
 
-def amble(initial, state)
-  nxt = initial.call(state)
-  while nxt
-    nxt = nxt.call
+    def resolve(state)
+      @delegate.call(state)
+    end
+  end
+
+  def self.amble(state, lead, &follow)
+    current_lead = lead
+    current_state = state
+
+    while current_lead
+      step = follow.call(current_lead)
+      current_state, current_lead = step.resolve(current_state)
+    end
+
+    current_state
   end
 end
