@@ -1,14 +1,24 @@
-from typing import Any, Callable, Optional
+from abc import ABC, abstractmethod
+from typing import TypeVar, Tuple, Callable, Optional, Awaitable
 
-class Next:
-    def __init__(self, next_func: Callable[..., Any], state: Any):
-        self.next_func = next_func
-        self.state = state
+S = TypeVar('S')
+L = TypeVar('L')
 
-    def __call__(self) -> Optional['Next']:
-        return self.next_func(self.state)
+class Step(ABC):
+    @abstractmethod
+    async def resolve(self, state: S) -> Tuple[S, Optional[L]]:
+        pass
 
-def amble(initial: Callable[..., Optional[Next]], state: Any):
-    next_step = initial(state)
-    while next_step is not None:
-        next_step = next_step()
+class Next(Step):
+    def __init__(self, delegate: Callable[[S], Awaitable[Tuple[S, Optional[L]]]]):
+        self.delegate = delegate
+
+    async def resolve(self, state: S) -> Tuple[S, Optional[L]]:
+        return await self.delegate(state)
+
+async def amble(state: S, lead: L, follow: Callable[[L], Step]) -> S:
+    current_state, next_lead = await follow(lead).resolve(state)
+    if next_lead is None:
+        return current_state
+    else:
+        return await amble(current_state, next_lead, follow)

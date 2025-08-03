@@ -1,36 +1,62 @@
+import asyncio
 import random
-import time
-from typing import Optional
+from enum import Enum, auto
+from typing import Tuple, Optional
 
-from ambler import Next, amble
-
-
-def start(state: int) -> Next:
-    text = input("Enter a starting number (or press Enter for default): ")
-    if not text:
-        print("Using default starting number.")
-        return Next(count, state)
-    try:
-        return Next(count, int(text))
-    except ValueError:
-        print("Invalid number, please try again.")
-        return Next(start, state)
+from ambler import amble, Next
 
 
-def count(state: int) -> Optional[Next]:
-    print(f"Count: {state}")
-    time.sleep(1)
-    new_state = state + 1
-    if random.random() > 0.5:
-        return Next(count, new_state)
+class CounterLead(Enum):
+    START = auto()
+    COUNT = auto()
+    STOP = auto()
+
+async def start(state: int) -> Tuple[int, Optional[CounterLead]]:
+    while True:
+        user_input = input("Enter a starting number (or press Enter for default 0): ")
+        if not user_input:
+            print(f"Starting count from default: {state}")
+            return state, CounterLead.COUNT
+        try:
+            initial_count = int(user_input)
+            state = initial_count
+            print(f"Starting count from: {state}")
+            return state, CounterLead.COUNT
+        except ValueError:
+            print("Invalid input. Please enter a valid number or press Enter.")
+
+
+async def count(state: int) -> Tuple[int, Optional[CounterLead]]:
+    print(f"Current count: {state}")
+    await asyncio.sleep(1)
+    state += 1
+    if random.choice([True, False]):
+        return state, CounterLead.COUNT
     else:
-        return Next(stop, new_state)
+        return state, CounterLead.STOP
 
 
-def stop(state: int) -> Optional[Next]:
-    print(f"Stopping count at {state}.")
-    return None
+async def stop(state: int) -> Tuple[int, Optional[CounterLead]]:
+    print(f"Final count: {state}")
+    return state, None
+
+
+async def main():
+    initial_state = 0
+    initial_lead = CounterLead.START
+
+    def follow(lead: CounterLead):
+        if lead == CounterLead.START:
+            return Next(start)
+        elif lead == CounterLead.COUNT:
+            return Next(count)
+        elif lead == CounterLead.STOP:
+            return Next(stop)
+        else:
+            raise ValueError(f"Unknown lead: {lead}")
+
+    await amble(initial_state, initial_lead, follow)
 
 
 if __name__ == "__main__":
-    amble(start, 0)
+    asyncio.run(main())
