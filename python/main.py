@@ -11,6 +11,7 @@ class CounterLead(Enum):
     COUNT = auto()
     STOP = auto()
 
+
 async def start(state: int) -> Tuple[int, Optional[CounterLead]]:
     while True:
         user_input = input("Enter a starting number (or press Enter for default 0): ")
@@ -46,14 +47,15 @@ async def main():
     initial_lead = CounterLead.START
 
     def follow(lead: CounterLead):
-        if lead == CounterLead.START:
-            return Next(start)
-        elif lead == CounterLead.COUNT:
-            return Next(count)
-        elif lead == CounterLead.STOP:
-            return Next(stop)
-        else:
-            raise ValueError(f"Unknown lead: {lead}")
+        match lead:
+            case CounterLead.START:
+                return Next(start)
+            case CounterLead.COUNT:
+                return Next(count)
+            case CounterLead.STOP:
+                return Next(stop)
+            case _:
+                raise ValueError(f"Unknown lead: {lead}")
 
     await amble(initial_state, initial_lead, follow)
 
