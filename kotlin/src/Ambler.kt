@@ -1,5 +1,5 @@
-interface Step<S, N> {
-    suspend fun resolve(state: S): Pair<S, N?>
+interface Step<S, L> {
+    suspend fun resolve(state: S): Pair<S, L?>
 }
 
 class Next<S, T>(private val delegate: suspend (S) -> Pair<S, T?>) : Step<S, T> {
