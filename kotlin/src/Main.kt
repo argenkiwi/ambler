@@ -1,14 +1,14 @@
 import core.Lead
-import core.step.count
-import core.step.start
-import core.step.stop
+import core.step.Count
+import core.step.Start
+import core.step.Stop
 
 suspend fun main() {
     amble(0, Lead.START) {
         when (it) {
-            Lead.START -> Next(::start)
-            Lead.COUNT -> Next(::count)
-            Lead.STOP -> Next(::stop)
+            Lead.START -> Start
+            Lead.COUNT -> Count
+            Lead.STOP -> Stop
         }
     }
 }
