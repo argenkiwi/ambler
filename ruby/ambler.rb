@@ -5,16 +5,6 @@ module Ambler
     end
   end
 
-  class Next < Step
-    def initialize(delegate)
-      @delegate = delegate
-    end
-
-    def resolve(state)
-      @delegate.call(state)
-    end
-  end
-
   def self.amble(state, lead, &follow)
     current_lead = lead
     current_state = state
