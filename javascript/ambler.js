@@ -1,17 +1,9 @@
-export class Next {
-    constructor(nextFunc, state) {
-        this.nextFunc = nextFunc;
-        this.state = state;
-    }
-
-    run() {
-        return this.nextFunc(this.state);
-    }
-}
-
-export async function amble(initial, state) {
-    let next = await initial(state);
-    while (next) {
-        next = await next.run();
+export async function amble(state, lead, follow) {
+    const resolve = follow(lead);
+    const [currentState, nextLead] = await resolve(state);
+    if (nextLead === null) {
+        return currentState;
+    } else {
+        return await amble(currentState, nextLead, follow);
     }
 }
