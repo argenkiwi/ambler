@@ -1,6 +1,6 @@
 import asyncio
 
-from ambler import amble, Next
+from ambler import amble
 from lead import Lead
 from step.count import count
 from step.start import start
@@ -13,11 +13,11 @@ async def main():
 
     def follow(lead: Lead):
         if lead == Lead.START:
-            return Next(start)
+            return start
         elif lead == Lead.COUNT:
-            return Next(count)
+            return count
         elif lead == Lead.STOP:
-            return Next(stop)
+            return stop
         else:
             raise ValueError(f"Unknown lead: {lead}")
 
