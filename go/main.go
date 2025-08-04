@@ -3,54 +3,37 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math/rand"
 	"os"
-	"strconv"
-	"strings"
-	"time"
 
-	"ambler/counter/ambler"
+	"github.com/argenkiwi/ambler/go/pkg/ambler"
+	"github.com/argenkiwi/ambler/go/pkg/lead"
+	"github.com/argenkiwi/ambler/go/pkg/step"
 )
 
-func start(state int) (*ambler.Next, error) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter a starting number (or press Enter for default): ")
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-	input = strings.TrimSpace(input)
-
-	if input == "" {
-		fmt.Println("Using default starting number.")
-		return &ambler.Next{Run: func() (*ambler.Next, error) { return count(state) }}, nil
-	}
-
-	number, err := strconv.Atoi(input)
-	if err != nil {
-		fmt.Println("Invalid number, please try again.")
-		return &ambler.Next{Run: func() (*ambler.Next, error) { return start(state) }}, nil
-	}
-
-	return &ambler.Next{Run: func() (*ambler.Next, error) { return count(number) }}, nil
-}
-
-func count(state int) (*ambler.Next, error) {
-	fmt.Printf("Count: %d\n", state)
-	time.Sleep(1 * time.Second)
-	newState := state + 1
-	if rand.Float64() > 0.5 {
-		return &ambler.Next{Run: func() (*ambler.Next, error) { return count(newState) }}, nil
-	} else {
-		return &ambler.Next{Run: func() (*ambler.Next, error) { return stop(newState) }}, nil
-	}
-}
-
-func stop(state int) (*ambler.Next, error) {
-	fmt.Printf("Stopping count at %d.\n", state)
-	return nil, nil
-}
-
 func main() {
-	ambler.Amble(start, 0)
+	initialState := 0
+	initialLead := lead.Start
+	reader := bufio.NewReader(os.Stdin)
+
+	_, err := ambler.Amble(initialState, initialLead, func(l lead.Lead) func(int) (int, lead.Lead, error) {
+		switch l {
+		case lead.Start:
+			return func(s int) (int, lead.Lead, error) {
+				return step.Start(s, reader)
+			}
+		case lead.Count:
+			return func(s int) (int, lead.Lead, error) {
+				return step.Count(s)
+			}
+		case lead.Stop:
+			return func(s int) (int, lead.Lead, error) {
+				return step.Stop(s)
+			}
+		default:
+			panic(fmt.Sprintf("Unknown lead: %v", l))
+		}
+	})
+	if err != nil {
+		panic(err)
+	}
 }
