@@ -2,8 +2,6 @@ import { Step } from "../../ambler.ts";
 import { Lead } from "../Lead.ts";
 import { State } from "../State.ts";
 
-
-// 4. Implement the Count step.
 export class Count implements Step<State, Lead> {
   async resolve(state: State): Promise<[State, Lead | null]> {
     console.log(`Current count: ${state.count}`);

@@ -6,7 +6,6 @@ import { Stop } from "./core/step/Stop.ts";
 import { amble, Step } from "./ambler.ts";
 import { State } from "./core/State.ts";
 
-// 6. Create the main function to run the amble process.
 async function main() {
   const initialState: State = { count: 0 };
   const initialLead: Lead = Lead.START;

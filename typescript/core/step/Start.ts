@@ -3,7 +3,6 @@ import { Step } from "../../ambler.ts";
 import { State } from "../State.ts";
 import { Lead } from "../Lead.ts";
 
-// 3. Implement the Start step.
 export class Start implements Step<State, Lead> {
   async resolve(state: State): Promise<[State, Lead | null]> {
     while (true) {
