@@ -5,7 +5,8 @@ L = TypeVar('L')
 
 
 async def amble(state: S, lead: L, follow: Callable[[L], Callable[[S], Awaitable[Tuple[S, Optional[L]]]]]) -> S:
-    current_state, next_lead = await follow(lead)(state)
+    resolve = follow(lead)
+    current_state, next_lead = await resolve(state)
     if next_lead is None:
         return current_state
     else:
