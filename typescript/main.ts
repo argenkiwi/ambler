@@ -9,14 +9,14 @@ async function main() {
   const initialState = 0;
   const initialLead: Lead = Lead.START;
 
-  await amble(initialState, initialLead, async (lead, state) => {
+  await amble<number, Lead>(initialState, initialLead, async (lead, state) => {
     switch (lead) {
       case Lead.START:
         return await start(state);
       case Lead.COUNT:
         return await count(state);
       case Lead.STOP:
-        return await stop(state);
+        return stop(state);
       default:
         throw new Error(`Unknown lead: ${lead}`);
     }
