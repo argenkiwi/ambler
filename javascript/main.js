@@ -5,29 +5,29 @@ import { count } from "./src/step/count.js";
 import { stop } from "./src/step/stop.js";
 import { createInterface } from 'readline';
 
-const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
 async function main() {
+    const rl = createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
     const initialState = 0;
     const initialLead = Lead.Start;
 
-    const follow = (lead) => {
+    await amble(initialState, initialLead, async (lead, state) => {
         switch (lead) {
             case Lead.Start:
-                return (state) => start(state, rl);
+                return await start(state, rl);
             case Lead.Count:
-                return count;
+                return await count(state);
             case Lead.Stop:
-                return (state) => stop(state, rl);
+                return stop(state);
             default:
                 throw new Error(`Unknown lead: ${lead}`);
         }
-    };
+    });
 
-    await amble(initialState, initialLead, follow);
+    rl.close();
 }
 
 main();

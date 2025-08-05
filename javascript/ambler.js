@@ -1,6 +1,5 @@
 export async function amble(state, lead, follow) {
-    const resolve = follow(lead);
-    const [currentState, nextLead] = await resolve(state);
+    const [currentState, nextLead] = await follow(lead, state);
     if (nextLead === null) {
         return currentState;
     } else {

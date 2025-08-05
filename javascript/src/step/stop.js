@@ -1,5 +1,4 @@
-export function stop(state, readlineInterface) {
+export function stop(state) {
     console.log(`Final count: ${state}`);
-    readlineInterface.close();
     return [state, null];
 }
