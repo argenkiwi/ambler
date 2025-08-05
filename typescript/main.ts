@@ -1,23 +1,23 @@
 
-import { Count } from "./core/step/Count.ts";
+import { count } from "./core/step/Count.ts";
 import { Lead } from "./core/Lead.ts";
-import { Start } from "./core/step/Start.ts";
-import { Stop } from "./core/step/Stop.ts";
-import { amble, Step } from "./ambler.ts";
+import { start } from "./core/step/Start.ts";
+import { stop } from "./core/step/Stop.ts";
+import { amble, StepFunc } from "./ambler.ts";
 import { State } from "./core/State.ts";
 
 async function main() {
   const initialState: State = { count: 0 };
   const initialLead: Lead = Lead.START;
 
-  const follow = (lead: Lead): Step<State, Lead> => {
+  const follow = (lead: Lead): StepFunc<State, Lead> => {
     switch (lead) {
       case Lead.START:
-        return new Start();
+        return start;
       case Lead.COUNT:
-        return new Count();
+        return count;
       case Lead.STOP:
-        return new Stop();
+        return stop;
       default:
         throw new Error(`Unknown lead: ${lead}`);
     }
