@@ -3,15 +3,15 @@ require_relative './step/start'
 require_relative './step/count'
 require_relative './step/stop'
 
-initial_state = { count: 0 }
+initial_state = 0
 
-Ambler.amble(initial_state, :start) do |lead|
+Ambler.amble(initial_state, :start) do |lead, state|
   case lead
   when :start
-    Start.new
+    start(state)
   when :count
-    Count.new
+    count(state)
   when :stop
-    Stop.new
+    stop(state)
   end
 end
