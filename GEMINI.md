@@ -2,19 +2,12 @@
 
 This document describes conventions to be followed to build _Ambler_ applications.
 
-## Components
-
-- State: represents any data to be shared across the application.
-- Step: an interface with a function that receives the current state as a parameter, performs a specific task and returns the updated state and a lead to the next step.
-- Next: a step that delegates its resolution to a step function.
-- Amble: a function that takes the initial state and lead as parameters and continues to follow each lead and resolve each step until no lead is returned.
-
 ## Process
 
 1. Identify the application's shared state.
 2. Identify the application's steps.
 3. Define the leads to each step and implement the steps' logic.
-4. Call the ambler function at the start of the application providing the initial state and lead as well as a `follow` function that returns the step that corresponds to each lead.
+4. Call the ambler function at the start of the application providing the initial state and lead as well as a `follow` function.
 
 ## Structuree 
 At the root of the project there should be:
