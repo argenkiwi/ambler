@@ -1,26 +1,23 @@
 <?php
 
-require_once __DIR__ . '/../ambler.php';
+require_once __DIR__ . '/../lead.php';
 
-class Start implements Step {
-    public function resolve($state) {
-        while (true) {
-            echo "Enter a starting number (or press Enter for default 0): ";
-            $userInput = trim(fgets(STDIN));
+function start($state) {
+    while (true) {
+        echo "Enter a starting number (or press Enter for default 0): ";
+        $userInput = trim(fgets(STDIN));
 
-            if (empty($userInput)) {
-                $state['count'] = 0;
-                echo "Starting count from default: {$state['count']}\n";
-                return [$state, 'count'];
-            }
+        if (empty($userInput)) {
+            echo "Starting count from default: $state\n";
+            return [$state, Lead::COUNT];
+        }
 
-            if (is_numeric($userInput)) {
-                $state['count'] = (int)$userInput;
-                echo "Starting count from: {$state['count']}\n";
-                return [$state, 'count'];
-            } else {
-                echo "Invalid input. Please enter a valid number or press Enter.\n";
-            }
+        if (is_numeric($userInput)) {
+            $state = (int)$userInput;
+            echo "Starting count from: $state\n";
+            return [$state, Lead::COUNT];
+        } else {
+            echo "Invalid input. Please enter a valid number or press Enter.\n";
         }
     }
 }
