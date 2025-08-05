@@ -15,20 +15,14 @@ func main() {
 	initialLead := lead.Start
 	reader := bufio.NewReader(os.Stdin)
 
-	_, err := ambler.Amble(initialState, initialLead, func(l lead.Lead) func(int) (int, lead.Lead, error) {
+	_, err := ambler.Amble(initialState, initialLead, func(l lead.Lead, s int) (int, lead.Lead, error) {
 		switch l {
 		case lead.Start:
-			return func(s int) (int, lead.Lead, error) {
-				return step.Start(s, reader)
-			}
+			return step.Start(s, reader)
 		case lead.Count:
-			return func(s int) (int, lead.Lead, error) {
-				return step.Count(s)
-			}
+			return step.Count(s)
 		case lead.Stop:
-			return func(s int) (int, lead.Lead, error) {
-				return step.Stop(s)
-			}
+			return step.Stop(s)
 		default:
 			panic(fmt.Sprintf("Unknown lead: %v", l))
 		}

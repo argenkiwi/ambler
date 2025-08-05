@@ -8,5 +8,5 @@ import (
 
 func Stop(state int) (int, lead.Lead, error) {
 	fmt.Printf("Final count: %d\n", state)
-	return state, -1, nil
+	return state, lead.None, nil
 }

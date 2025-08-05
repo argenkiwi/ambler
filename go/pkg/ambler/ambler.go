@@ -4,14 +4,13 @@ import (
 	"github.com/argenkiwi/ambler/go/pkg/lead"
 )
 
-func Amble[S any](state S, next lead.Lead, follow func(lead.Lead) func(S) (S, lead.Lead, error)) (S, error) {
-	resolve := follow(next)
-	currentState, nextLead, err := resolve(state)
+func Amble[S any](state S, next lead.Lead, follow func(lead.Lead, S) (S, lead.Lead, error)) (S, error) {
+	currentState, nextLead, err := follow(next, state)
 	if err != nil {
 		return currentState, err
 	}
 
-	if nextLead == -1 {
+	if nextLead == lead.None {
 		return currentState, nil
 	}
 

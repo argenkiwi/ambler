@@ -3,7 +3,8 @@ package lead
 type Lead int
 
 const (
-	Start Lead = iota
+	None Lead = iota - 1
+	Start
 	Count
 	Stop
 )
