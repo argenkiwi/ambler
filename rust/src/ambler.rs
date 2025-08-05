@@ -1,6 +1,4 @@
-
 use std::future::Future;
-use std::pin::Pin;
 
 pub async fn amble<S, L, F, Fut>(mut state: S, mut lead: L, mut follow: F) -> S
 where
