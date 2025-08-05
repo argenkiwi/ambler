@@ -11,13 +11,13 @@ async def main():
     initial_state = 0
     initial_lead = Lead.START
 
-    def follow(lead: Lead):
+    async def follow(lead: Lead, state: int):
         if lead == Lead.START:
-            return start
+            return start(state)
         elif lead == Lead.COUNT:
-            return count
+            return await count(state)
         elif lead == Lead.STOP:
-            return stop
+            return stop(state)
         else:
             raise ValueError(f"Unknown lead: {lead}")
 
