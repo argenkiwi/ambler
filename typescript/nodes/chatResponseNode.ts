@@ -1,4 +1,4 @@
-import { Ollama } from "npm:ollama";
+import { ollamaChat } from "../utils/ollama_chat.ts";
 import { Next, Nextable } from "../ambler.ts";
 
 export namespace ChatResponseNode {
@@ -21,9 +21,7 @@ export namespace ChatResponseNode {
 
   const defaultUtils: Utils = {
     chat: async (messages: Message[], host: string, model: string) => {
-      const ollama = new Ollama({ host });
-      const response = await ollama.chat({ model, messages });
-      return response.message.content;
+      return await ollamaChat(host, model, messages);
     },
     print: (msg: string) => console.log(msg),
   };
