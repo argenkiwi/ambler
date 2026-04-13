@@ -1,12 +1,8 @@
-import { Next, Nextable } from "../ambler.ts";
 import fs from "node:fs/promises";
+import { Next, Nextable } from "../ambler.ts";
 
 export namespace StorySaveNode {
   export interface State {
-    selectedModel: string;
-    identity: string;
-    placement: string;
-    circumstances: string;
     storyPages: string[];
   }
 
