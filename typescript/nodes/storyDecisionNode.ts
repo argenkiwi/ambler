@@ -2,13 +2,7 @@ import { Next, Nextable } from "../ambler.ts";
 
 export namespace StoryDecisionNode {
   export interface State {
-    selectedModel: string;
-    ollamaHost: string;
-    identity: string;
-    placement: string;
-    circumstances: string;
     storyPages: string[];
-    currentPage: number;
   }
 
   export type Edges<S extends State> = {
