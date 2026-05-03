@@ -1,34 +1,37 @@
-import { Edges, Node } from "../ambler.ts";
+import { NodeFactory } from "../ambler.ts";
 
-export interface Utils {
-  log: (message: string) => void;
-  sleep: (ms: number) => Promise<void>;
-  random: () => number;
+export interface State {
+  count: number;
 }
 
-export type Edge = "onCount" | "onStop";
+export type Edge = "onLoop" | "onStop";
 
-export function create<S extends { count: number }, K extends string>(
-  edges: Edges<Edge, K>,
-  utils: Utils = {
-    log: console.log,
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    random: Math.random,
-  },
-): Node<S, K> {
+export type Utils = {
+  print: (msg: string) => void;
+  sleep: (ms: number) => Promise<void>;
+  random: () => number;
+};
+
+const defaultUtils: Utils = {
+  print: (msg) => console.log(msg),
+  sleep: (ms: number) => new Promise((r) => setTimeout(r, ms)),
+  random: Math.random,
+};
+
+const create: NodeFactory<Edge, Utils, State> = (edges, utils = defaultUtils) => {
   return async (state) => {
-    utils.log(`Current count: ${state.count}`);
-
+    utils.print(`Count: ${state.count}`);
     await utils.sleep(1000);
 
     const nextState = { ...state, count: state.count + 1 };
 
-    const stop = utils.random() > 0.7;
-
-    if (stop) {
+    // Randomly transition: roughly 50/50
+    if (utils.random() < 0.5) {
+      return [edges.onLoop, nextState];
+    } else {
       return [edges.onStop, nextState];
     }
-
-    return [edges.onCount, nextState];
   };
-}
+};
+
+export default create;
