@@ -1,29 +1,45 @@
-import { Edges, Node } from "../ambler.ts";
+import { NodeFactory } from "../ambler.ts";
 
-export interface Utils {
-  prompt: (message: string) => string | null;
-  error: (message: string) => void;
+export interface State {
+  count: number;
 }
 
 export type Edge = "onSuccess" | "onError";
 
-export function create<S extends { count: number }, K extends string>(
-  edges: Edges<Edge, K>,
-  utils: Utils = { prompt: globalThis.prompt.bind(globalThis), error: console.error },
-): Node<S, K> {
-  return (state) => {
-    const input = utils.prompt("Enter a starting number (default 0):");
+export type Utils = {
+  print: (msg: string) => void;
+  readLine: (prompt: string) => string | null;
+};
 
-    if (input === null || input.trim() === "") {
+const defaultUtils: Utils = {
+  print: (msg) => console.log(msg),
+  readLine: (_prompt: string) => "",
+};
+
+const create: NodeFactory<Edge, Utils, State> = (edges, utils = defaultUtils) => {
+  return (state) => {
+    const input = utils.readLine("Enter starting number: ");
+    if (input === null) {
+      utils.print("No input received. Using default count of 0.");
+      return [edges.onSuccess, { ...state, count: 0 }];
+    }
+    const trimmed = input.trim();
+
+    if (trimmed === "") {
+      utils.print("Using default count of 0.");
       return [edges.onSuccess, { ...state, count: 0 }];
     }
 
-    const count = parseInt(input, 10);
-    if (isNaN(count)) {
-      utils.error("Invalid number entered.");
-      return [edges.onError, state];
+    const num = Number(trimmed);
+
+    if (Number.isNaN(num)) {
+      utils.print("Invalid input. Please enter a number.");
+      return [edges.onError, { ...state }];
     }
 
-    return [edges.onSuccess, { ...state, count }];
+    utils.print(`Starting count: ${num}`);
+    return [edges.onSuccess, { ...state, count: num }];
   };
-}
+};
+
+export default create;

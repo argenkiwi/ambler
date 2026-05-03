@@ -1,18 +1,24 @@
-import { Edges, Node } from "../ambler.ts";
+import { NodeFactory } from "../ambler.ts";
 
-export interface Utils {
-  log: (message: string) => void;
+export interface State {
+  count: number;
 }
 
 export type Edge = "onDone";
 
-export function create<S extends { count: number }, K extends string>(
-  edges: Edges<Edge, K>,
-  utils: Utils = { log: console.log },
-): Node<S, K> {
+export type Utils = {
+  print: (msg: string) => void;
+};
+
+const defaultUtils: Utils = {
+  print: (msg) => console.log(msg),
+};
+
+const create: NodeFactory<Edge, Utils, State> = (edges, utils = defaultUtils) => {
   return (state) => {
-    utils.log(`Final count: ${state.count}`);
-    utils.log("Counting process terminated.");
-    return [edges.onDone, state];
+    utils.print(`Final count: ${state.count}`);
+    return [null, state];
   };
-}
+};
+
+export default create;

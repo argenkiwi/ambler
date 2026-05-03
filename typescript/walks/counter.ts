@@ -1,7 +1,7 @@
-import { ambler, Node } from "../ambler.ts";
-import * as StartNode from "../nodes/startNode.ts";
-import * as CountNode from "../nodes/countNode.ts";
-import * as StopNode from "../nodes/stopNode.ts";
+import { ambler } from "../ambler.ts";
+import startNode from "../nodes/startNode.ts";
+import countNode from "../nodes/countNode.ts";
+import stopNode from "../nodes/stopNode.ts";
 
 export interface State {
   count: number;
@@ -9,13 +9,11 @@ export interface State {
 
 type NodeId = "start" | "count" | "stop";
 
-const nodes: Record<NodeId, Node<State, NodeId>> = {
-  start: StartNode.create({ onSuccess: "count", onError: "start" }),
-  count: CountNode.create({ onCount: "count", onStop: "stop" }),
-  stop: StopNode.create({ onDone: null }),
-};
-
-const amble = ambler(nodes);
+const amble = ambler<State, NodeId>((bind) => ({
+  start: bind(startNode, { onSuccess: "count", onError: "start" }),
+  count: bind(countNode, { onLoop: "count", onStop: "stop" }),
+  stop:  bind(stopNode, { onDone: null }),
+}));
 
 if (import.meta.main) {
   let nodeId: NodeId | null = "start";
@@ -25,6 +23,6 @@ if (import.meta.main) {
 
   while (nodeId) {
     const next = amble(nodeId, state);
-    [nodeId, state] = next instanceof Promise ? await next : next;
+    [nodeId, state] = typeof next === 'function' ? next : await next;
   }
 }
