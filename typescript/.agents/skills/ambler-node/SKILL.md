@@ -3,7 +3,7 @@ name: ambler-node
 description: Creates a new Ambler node in the nodes/ directory. Use this whenever the user wants to add a node, step, or state to an Ambler project — even if they phrase it as "add a step", "create a handler", or describe the behavior without using the word "node".
 metadata:
   author: leandro
-  version: "1.4"
+  version: "2.0"
 ---
 
 # Ambler Node
@@ -48,7 +48,7 @@ const defaultUtils: Utils = {
   // readLine: (msg) => prompt(msg),
 };
 
-const create: NodeFactory<Edge, Utils, State> = (
+export const factory: NodeFactory<State, Edge, Utils> = (
   edges,
   utils = defaultUtils,
 ) => {
@@ -63,23 +63,54 @@ const create: NodeFactory<Edge, Utils, State> = (
     return [edges.onSuccess, nextState];
   };
 };
-
-export default create;
 ```
 
 ### Key rules
 
 - **Imports**: Always import `NodeFactory` from `"../ambler.ts"`.
-- **Default Export**: Export `create` as `default`.
-- **Named Exports**: Export `State`, `Edge`, and `Utils` at the module level.
-- **NodeFactory Type**: Use `const create: NodeFactory<Edge, Utils, State> = ...` to ensure types are correctly enforced.
+- **Exports**: Use `export const factory` for the node factory.
+- **Named Exports**: Export `State` (if specific), `Edge`, and `Utils` at the module level.
+- **NodeFactory Type**: Use `NodeFactory<State, Edge, Utils>` to ensure types are correctly enforced.
 - **Utils**: `defaultUtils` contains production implementations. Complex or reusable logic (e.g., LLM calls, file I/O) should be moved to `utils/` and imported.
 - **Immutability**: Never mutate `state` directly; always return a new object: `{ ...state, ...updates }`.
 - **Termination**: Nodes that terminate the walk still use `Record<Edge, K | null>` in their `create` signature via `NodeFactory`. In the `walks/*.ts` file, they are initialized with an edge mapped to `null` (e.g., `stopNode({ onDone: null })`).
 
 ---
 
-## 3. Create `nodes/tests/<name>Node.test.ts`
+## 3. Adapter Nodes (Optional)
+
+If you need to use an existing node but the walk's state has different property names, create an adapter node.
+
+```typescript
+import { NodeFactory } from "../ambler.ts";
+import { factory as originalFactory, Edge, Utils } from "./originalNode.ts";
+
+export interface State {
+  // The walk's state property name
+  newPropertyName: number;
+}
+
+/**
+ * Adapter that maps 'newPropertyName' state property to 'originalPropertyName'.
+ */
+export const factory: NodeFactory<State, Edge, Utils> = (edges, utils) => {
+  const node = originalFactory(edges, utils);
+
+  return async (state) => {
+    // 1. Map from walk state to original node state
+    const [edge, nextState] = await node({ 
+      originalPropertyName: state.newPropertyName 
+    } as any);
+
+    // 2. Map back from original node state to walk state
+    return [edge, { ...state, newPropertyName: (nextState as any).originalPropertyName }];
+  };
+};
+```
+
+---
+
+## 4. Create `nodes/tests/<name>Node.test.ts`
 
 Use the `/ambler-test` skill to generate the test file.
 
@@ -88,7 +119,7 @@ Use the `/ambler-test` skill to generate the test file.
 ## 4. Checklist before finishing
 
 - [ ] `nodes/<name>Node.ts` uses the `Edge` naming convention for edge keys.
-- [ ] `create` function uses `NodeFactory` and is the `default` export.
+- [ ] Factory uses `NodeFactory<State, Edge, Utils>` and is exported as `factory`.
 - [ ] `State` interface is minimal.
 - [ ] `defaultUtils` provides real implementations.
 - [ ] No direct state mutation.
