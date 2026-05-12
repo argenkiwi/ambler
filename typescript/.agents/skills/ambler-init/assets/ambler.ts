@@ -18,6 +18,14 @@ export type Node<S, K extends string> = (
   state: S,
 ) => Next<S, K> | Promise<Next<S, K>>;
 
+export type NodeFactory<E extends string, NS, U = unknown> = <
+  N extends string,
+  S extends NS = NS,
+>(
+  edges: Record<E, N | null>,
+  utils?: U,
+) => Node<S, N>;
+
 /**
  * Creates a state machine runner from a map of node factories.
  *
