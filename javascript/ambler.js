@@ -1,37 +1,51 @@
 /**
- * Creates a single-step executor for a node registry.
- * The setup callback receives a `bind` function; nodes are instantiated lazily
- * on their first execution rather than upfront.
+ * The result of a node's execution: the next node ID (or `null` to stop) and the updated state.
  *
- * @param {function} setup A callback that registers nodes via `bind(factory, edges, utils?)`.
- * @returns {function} A function that executes one node step and returns a Next tuple [nextNodeId, state].
+ * @template S The machine's state type.
+ * @template {string} K The union of valid node identifier strings.
+ * @typedef {[key: K | null, state: S]} Next
  */
-export function ambler(setup) {
-  /**
-   * Binds a node factory to its edge map, deferring instantiation until first execution.
-   *
-   * @param {function} factory The node factory function.
-   * @param {Object} edges Map of edge names to next node IDs.
-   * @param {Object} [utils] Optional utilities for the node.
-   * @returns {function} A node function.
-   */
-  function bind(factory, edges, utils) {
-    let node;
-    return (state, key) => {
-      if (!node) {
-        node = factory(edges, utils);
-      }
-      return node(state, key);
-    };
-  }
 
-  const nodes = setup(bind);
+/**
+ * A processing step in the state machine.
+ *
+ * Receives the current state and returns a {@link Next} tuple (or a Promise resolving to one).
+ *
+ * @template S The machine's state type.
+ * @template {string} K The union of valid node identifier strings.
+ * @typedef {(state: S) => Next<S, K> | Promise<Next<S, K>>} Node
+ */
 
+/**
+ * A factory function that creates a {@link Node}.
+ *
+ * It decouples the node's internal logic from the specific node IDs (edges) and
+ * external dependencies (utils) used in a specific walk.
+ *
+ * @template S The state type required by this node.
+ * @template {string} E The union of valid edge names for this node.
+ * @template U The type of the utilities object provided to the node.
+ * @template {string} N The union of valid node identifier strings in the walk.
+ * @typedef {(edges: Record<E, N | null>, utils?: U) => Node<S, N>} NodeFactory
+ */
+
+/**
+ * Creates a state machine runner from a map of node factories.
+ *
+ * Each factory is called once on first use; the resulting node is cached for subsequent calls.
+ *
+ * @template S The machine's state type.
+ * @template {string} K The union of valid node identifier strings.
+ * @param {Record<K, () => Node<S, K>>} nodes A map of node IDs to factory functions that produce {@link Node}s.
+ * @returns {(nodeId: K, state: S) => Next<S, K> | Promise<Next<S, K>>} A runner `(nodeId, state) => Next`.
+ * @throws {Error} If `nodeId` is not present in `nodes`.
+ */
+export function ambler(nodes) {
+  /** @type {Partial<Record<K, Node<S, K>>>} */
+  const loaded = {};
   return (nodeId, state) => {
-    const node = nodes[nodeId];
-    if (!node) {
-      throw new Error(`Node not found: ${nodeId}`);
-    }
-    return node(state, nodeId);
+    if (!(nodeId in nodes)) throw new Error(`Node not found: ${nodeId}`);
+    loaded[nodeId] ??= nodes[nodeId]();
+    return loaded[nodeId](state);
   };
 }

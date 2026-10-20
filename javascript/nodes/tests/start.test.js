@@ -1,54 +1,54 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import startNode from "../startNode.js";
+import { factory } from "../start.js";
 
-test("startNode should use default count of 0 when input is empty", () => {
+test("startNode should transition to onSuccess with 0 if input is empty", async () => {
   const initialState = { count: 0 };
 
   const utils = {
-    print: () => {},
-    readLine: () => "",
+    readLine: (_msg) => "",
+    print: (_msg) => {},
   };
 
-  const result = startNode(
-    { onSuccess: "count", onError: "start" },
+  const result = await factory(
+    { onSuccess: "NEXT", onError: "ERROR" },
     utils,
   )(initialState);
 
-  assert.strictEqual(result[0], "count");
+  assert.strictEqual(result[0], "NEXT");
   assert.strictEqual(result[1].count, 0);
 });
 
-test("startNode should use valid number when input is provided", () => {
+test("startNode should transition to onSuccess with input number", async () => {
   const initialState = { count: 0 };
 
   const utils = {
-    print: () => {},
-    readLine: () => "42",
+    readLine: (_msg) => "42",
+    print: (_msg) => {},
   };
 
-  const result = startNode(
-    { onSuccess: "count", onError: "start" },
+  const result = await factory(
+    { onSuccess: "NEXT", onError: "ERROR" },
     utils,
   )(initialState);
 
-  assert.strictEqual(result[0], "count");
+  assert.strictEqual(result[0], "NEXT");
   assert.strictEqual(result[1].count, 42);
 });
 
-test("startNode should loop back to start when input is invalid", () => {
-  const initialState = { count: 0 };
+test("startNode should transition to onError if input is invalid", async () => {
+  const initialState = { count: 123 };
 
   const utils = {
-    print: () => {},
-    readLine: () => "abc",
+    readLine: (_msg) => "abc",
+    print: (_msg) => {},
   };
 
-  const result = startNode(
-    { onSuccess: "count", onError: "start" },
+  const result = await factory(
+    { onSuccess: "NEXT", onError: "ERROR" },
     utils,
   )(initialState);
 
-  assert.strictEqual(result[0], "start");
-  assert.strictEqual(result[1].count, 0);
+  assert.strictEqual(result[0], "ERROR");
+  assert.strictEqual(result[1].count, 123);
 });

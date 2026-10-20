@@ -1,19 +1,20 @@
 /**
- * Factory for the Stop node.
- *
- * @param {Object} edges Map of transitions.
- * @param {Object} [utils] Utilities.
- * @returns {function} The node function.
+ * @typedef {{ count: number }} State
+ * @typedef {"onDone"} Edge
+ * @typedef {{ print: (msg: string) => void }} Utils
  */
-const create = (edges, utils = defaultUtils) => {
-  return (state) => {
-    utils.print(`Final count: ${state.count}`);
-    return [null, state];
-  };
-};
 
+/** @type {Utils} */
 const defaultUtils = {
   print: (msg) => console.log(msg),
 };
 
-export default create;
+/** @type {import("../ambler.js").NodeFactory<State, Edge, Utils, string>} */
+export const factory = (
+  edges,
+  utils = defaultUtils,
+) =>
+(state) => {
+  utils.print(`Final count: ${state.count}`);
+  return [edges.onDone, state];
+};
