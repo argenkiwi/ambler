@@ -1,71 +1,60 @@
-use crate::{Next, Node};
-use async_trait::async_trait;
-use std::collections::HashMap;
+use crate::nodes::HasCount;
+use crate::Node;
+use futures::future::BoxFuture;
+use std::sync::Arc;
 use std::time::Duration;
-use crate::nodes::start_node::HasCount;
 
-#[async_trait]
+pub struct Edges<K> {
+    pub on_count: Option<K>,
+    pub on_stop: Option<K>,
+}
+
 pub trait Utils: Send + Sync {
-    fn log(&self, message: &str);
-    async fn sleep(&self, duration: Duration);
+    fn print(&self, message: &str);
+    fn sleep(&self, ms: u64) -> BoxFuture<'static, ()>;
     fn random(&self) -> f64;
 }
 
 pub struct DefaultUtils;
 
-#[async_trait]
 impl Utils for DefaultUtils {
-    fn log(&self, message: &str) {
-        println!("{}", message);
+    fn print(&self, message: &str) {
+        println!("{message}");
     }
-    async fn sleep(&self, duration: Duration) {
-        tokio::time::sleep(duration).await;
+
+    fn sleep(&self, ms: u64) -> BoxFuture<'static, ()> {
+        Box::pin(tokio::time::sleep(Duration::from_millis(ms)))
     }
+
     fn random(&self) -> f64 {
         rand::random::<f64>()
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum Edge {
-    OnCount,
-    OnStop,
-}
-
-pub struct CountNode<K> {
-    pub edges: HashMap<Edge, Option<K>>,
-    pub utils: Box<dyn Utils>,
-}
-
-impl<K> CountNode<K> {
-    pub fn new(edges: HashMap<Edge, Option<K>>, utils: Box<dyn Utils>) -> Self {
-        Self { edges, utils }
-    }
-}
-
-#[async_trait]
-impl<S, K> Node<S, K> for CountNode<K>
+/// Creates the node. `None` utils uses [`DefaultUtils`].
+pub fn factory<S, K>(edges: Edges<K>, utils: Option<Arc<dyn Utils>>) -> Node<S, K>
 where
-    S: HasCount + Send + Sync + 'static,
-    K: Clone + Send + Sync + std::hash::Hash + std::cmp::Eq + 'static,
+    S: HasCount + Send + 'static,
+    K: Clone + Send + Sync + 'static,
 {
-    async fn run(&self, mut state: S, _key: K) -> Next<S, K> {
-        self.utils.log(&format!("Current count: {}", state.count()));
+    let utils = utils.unwrap_or_else(|| Arc::new(DefaultUtils));
+    let edges = Arc::new(edges);
 
-        self.utils.sleep(Duration::from_secs(1)).await;
+    Box::new(move |mut state: S| {
+        let utils = utils.clone();
+        let edges = edges.clone();
+        Box::pin(async move {
+            utils.print(&format!("Current count: {}", state.count()));
+            utils.sleep(1000).await;
+            state.set_count(state.count() + 1);
 
-        state.set_count(state.count() + 1);
-
-        let stop = self.utils.random() > 0.7;
-
-        let next_node = if stop {
-            self.edges.get(&Edge::OnStop).cloned().flatten()
-        } else {
-            self.edges.get(&Edge::OnCount).cloned().flatten()
-        };
-
-        (next_node, state)
-    }
+            if utils.random() > 0.5 {
+                (edges.on_count.clone(), state)
+            } else {
+                (edges.on_stop.clone(), state)
+            }
+        })
+    })
 }
 
 #[cfg(test)]
@@ -75,6 +64,7 @@ mod tests {
     struct MockState {
         count: i32,
     }
+
     impl HasCount for MockState {
         fn count(&self) -> i32 {
             self.count
@@ -85,42 +75,42 @@ mod tests {
     }
 
     struct MockUtils {
-        random_val: f64,
+        random: f64,
     }
-    #[async_trait]
+
     impl Utils for MockUtils {
-        fn log(&self, _message: &str) {}
-        async fn sleep(&self, _duration: Duration) {}
+        fn print(&self, _message: &str) {}
+        fn sleep(&self, _ms: u64) -> BoxFuture<'static, ()> {
+            Box::pin(async {})
+        }
         fn random(&self) -> f64 {
-            self.random_val
+            self.random
         }
     }
 
-    #[tokio::test]
-    async fn test_count_node_continue() {
-        let mut edges = HashMap::new();
-        edges.insert(Edge::OnCount, Some("count".to_string()));
-
-        let node = CountNode::new(edges, Box::new(MockUtils { random_val: 0.5 }));
-        let state = MockState { count: 5 };
-
-        let (next, next_state) = node.run(state, "count".to_string()).await;
-
-        assert_eq!(next, Some("count".to_string()));
-        assert_eq!(next_state.count, 6);
+    fn node(random: f64) -> Node<MockState, &'static str> {
+        factory(
+            Edges {
+                on_count: Some("onCount"),
+                on_stop: Some("onStop"),
+            },
+            Some(Arc::new(MockUtils { random })),
+        )
     }
 
     #[tokio::test]
-    async fn test_count_node_stop() {
-        let mut edges = HashMap::new();
-        edges.insert(Edge::OnStop, Some("stop".to_string()));
+    async fn increments_count_and_transitions_to_on_count_if_random_above_half() {
+        let (next, state) = node(0.6)(MockState { count: 5 }).await;
 
-        let node = CountNode::new(edges, Box::new(MockUtils { random_val: 0.8 }));
-        let state = MockState { count: 5 };
+        assert_eq!(next, Some("onCount"));
+        assert_eq!(state.count, 6);
+    }
 
-        let (next, next_state) = node.run(state, "count".to_string()).await;
+    #[tokio::test]
+    async fn increments_count_and_transitions_to_on_stop_if_random_at_most_half() {
+        let (next, state) = node(0.4)(MockState { count: 10 }).await;
 
-        assert_eq!(next, Some("stop".to_string()));
-        assert_eq!(next_state.count, 6);
+        assert_eq!(next, Some("onStop"));
+        assert_eq!(state.count, 11);
     }
 }
