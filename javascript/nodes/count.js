@@ -1,30 +1,33 @@
 /**
- * Factory for the Count node.
- *
- * @param {Object} edges Map of transitions.
- * @param {Object} [utils] Utilities.
- * @returns {function} The node function.
+ * @typedef {{ count: number }} State
+ * @typedef {"onCount" | "onStop"} Edge
+ * @typedef {{
+ *   print: (msg: string) => void,
+ *   sleep: (ms: number) => Promise<void>,
+ *   random: () => number,
+ * }} Utils
  */
-const create = (edges, utils = defaultUtils) => {
-  return async (state) => {
-    utils.print(`Count: ${state.count}`);
-    await utils.sleep(1000);
 
-    const nextState = { ...state, count: state.count + 1 };
-
-    // Randomly transition: roughly 50/50
-    if (utils.random() < 0.5) {
-      return [edges.onLoop, nextState];
-    } else {
-      return [edges.onStop, nextState];
-    }
-  };
-};
-
+/** @type {Utils} */
 const defaultUtils = {
   print: (msg) => console.log(msg),
-  sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
-  random: Math.random,
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  random: () => Math.random(),
 };
 
-export default create;
+/** @type {import("../ambler.js").NodeFactory<State, Edge, Utils, string>} */
+export const factory = (
+  edges,
+  utils = defaultUtils,
+) =>
+async (state) => {
+  utils.print(`Current count: ${state.count}`);
+  await utils.sleep(1000);
+  const nextState = { ...state, count: state.count + 1 };
+
+  if (utils.random() > 0.5) {
+    return [edges.onCount, nextState];
+  } else {
+    return [edges.onStop, nextState];
+  }
+};

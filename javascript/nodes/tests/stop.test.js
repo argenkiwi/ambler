@@ -1,19 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import stopNode from "../stopNode.js";
+import { factory } from "../stop.js";
 
-test("stopNode should terminate with final count", () => {
-  const initialState = { count: 10 };
+test("stopNode should print final count and call onDone", async () => {
+  const initialState = { count: 15 };
+  let capturedMessage;
 
   const utils = {
-    print: () => {},
+    print: (msg) => {
+      capturedMessage = msg;
+    },
   };
 
-  const result = stopNode(
-    { onDone: "done" },
-    utils,
-  )(initialState);
+  const result = await factory({ onDone: null }, utils)(initialState);
 
   assert.strictEqual(result[0], null);
-  assert.strictEqual(result[1].count, 10);
+  assert.strictEqual(result[1].count, 15);
+  assert.strictEqual(capturedMessage, "Final count: 15");
 });
