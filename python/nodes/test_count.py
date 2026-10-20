@@ -1,32 +1,36 @@
 import unittest
-from count_node import create
+from nodes.count import factory
+
+
+class MockUtils:
+    def __init__(self, random):
+        self._random = random
+
+    def print(self, message):
+        pass
+
+    async def sleep(self, ms):
+        pass
+
+    def random(self):
+        return self._random
+
 
 class TestCountNode(unittest.IsolatedAsyncioTestCase):
-    async def test_count_node_increment_on_count(self):
-        state = {"count": 5}
-        class MockUtils:
-            def log(self, message): pass
-            async def sleep(self, ms): pass
-            def random(self): return 0.5
-        
-        node = create({"onCount": "count", "onStop": "stop"}, MockUtils())
-        next_id, next_state = await node(state, "count")
-        
-        self.assertEqual(next_id, "count")
+    async def test_increments_count_and_transitions_to_on_count_if_random_above_half(self):
+        node = factory({"onCount": "onCount", "onStop": "onStop"}, MockUtils(0.6))
+        next_id, next_state = await node({"count": 5})
+
+        self.assertEqual(next_id, "onCount")
         self.assertEqual(next_state["count"], 6)
 
-    async def test_count_node_increment_on_stop(self):
-        state = {"count": 5}
-        class MockUtils:
-            def log(self, message): pass
-            async def sleep(self, ms): pass
-            def random(self): return 0.8
-        
-        node = create({"onCount": "count", "onStop": "stop"}, MockUtils())
-        next_id, next_state = await node(state, "count")
-        
-        self.assertEqual(next_id, "stop")
-        self.assertEqual(next_state["count"], 6)
+    async def test_increments_count_and_transitions_to_on_stop_if_random_at_most_half(self):
+        node = factory({"onCount": "onCount", "onStop": "onStop"}, MockUtils(0.4))
+        next_id, next_state = await node({"count": 10})
+
+        self.assertEqual(next_id, "onStop")
+        self.assertEqual(next_state["count"], 11)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,44 +1,46 @@
 import asyncio
 import random
-from typing import Dict, Any, Protocol, Union, Awaitable
-from ambler import Edges, Node, Next
+from typing import Awaitable, Literal, Optional, Protocol, TypedDict, TypeVar
+from ambler import Edges, Node
+
+K = TypeVar("K", bound=str)
+
+
+class State(TypedDict):
+    count: int
+
+
+Edge = Literal["onCount", "onStop"]
+
 
 class Utils(Protocol):
-    def log(self, message: str) -> None:
-        ...
-    def sleep(self, ms: int) -> Awaitable[None]:
-        ...
-    def random(self) -> float:
-        ...
+    def print(self, message: str) -> None: ...
+    def sleep(self, ms: int) -> Awaitable[None]: ...
+    def random(self) -> float: ...
+
 
 class DefaultUtils:
-    def log(self, message: str) -> None:
+    def print(self, message: str) -> None:
         print(message)
-    
+
     async def sleep(self, ms: int) -> None:
         await asyncio.sleep(ms / 1000)
 
     def random(self) -> float:
         return random.random()
 
-Edge = Union[str, str] # "onCount" | "onStop"
 
-def create(
-    edges: Edges[str, str],
-    utils: Utils = DefaultUtils()
-) -> Node[Dict[str, Any], str]:
-    async def node_fn(state: Dict[str, Any], key: str) -> Next[Dict[str, Any], str]:
-        utils.log(f"Current count: {state['count']}")
+def factory(edges: Edges[Edge, K], utils: Optional[Utils] = None) -> Node[State, K]:
+    utils = utils or DefaultUtils()
 
+    async def node(state: State):
+        utils.print(f"Current count: {state['count']}")
         await utils.sleep(1000)
-
         next_state = {**state, "count": state["count"] + 1}
 
-        stop = utils.random() > 0.7
-
-        if stop:
+        if utils.random() > 0.5:
+            return edges["onCount"], next_state
+        else:
             return edges["onStop"], next_state
 
-        return edges["onCount"], next_state
-
-    return node_fn
+    return node
