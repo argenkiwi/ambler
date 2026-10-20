@@ -1,77 +1,143 @@
+---
 name: ambler-test
-description: Creates tests for an Ambler node. Use this whenever the user wants tests for a node — including "test this node", "add tests", "write tests for X", or any time a node is created without a corresponding test module.
+description: Adds or updates tests for an existing Ambler node that already has an implementation. Use this when a node exists in src/nodes/<name>.rs but has no #[cfg(test)] module, when tests need extending after new branches were added, or when retrofitting TDD onto existing code. For creating a brand-new node with tests, use `/ambler-node` instead.
 metadata:
   author: leandro
-  version: "1.0-rust"
+  version: "2.0-rust"
 ---
 
 # Ambler Test (Rust)
 
-Follow these steps to create a test module for a node in its own file.
+Follow these steps to add or update tests for an existing node in `src/nodes/`.
 
-## 1. Gather requirements
-
-Before writing any code, determine:
-
-- **Node file**: The `src/nodes/<name>_node.rs` file.
-- **Node's State, Edges, and Utils**: Read the node file to understand what the node does, which edges it has, and what utils it uses.
-- **Branches to cover**: Every branch where `next_node` is determined is a test case.
+> For brand-new nodes, use `/ambler-node` — it creates both the implementation and tests via a TDD cycle. This skill is for retrofitting tests onto nodes that already exist.
 
 ---
 
-## 2. Create the test module
+## 1. Read the existing node
 
-Append a `#[cfg(test)]` module to the bottom of the node file.
+Read `src/nodes/<name>.rs` in full. Identify:
+
+- **State traits** (the bounds on `S`, e.g. `S: HasCount + Send + 'static` — defined in `src/nodes/mod.rs`), the **`Edges<K>`** fields, and the **`Utils`** trait methods.
+- **Sync vs async**: Does the node return `Box::pin(std::future::ready(...))` or `Box::pin(async move { ... })`? Do any util methods return `BoxFuture<'static, T>`?
+- **All branches**: Every place the node returns `edges.on_<x>.clone()` is one branch. List them all — each becomes a test.
+
+---
+
+## 2. Check for existing tests
+
+Check whether the node file already has a `#[cfg(test)] mod tests` block at the bottom.
+
+- If it **does not exist**: write a complete new test module covering every branch.
+- If it **does exist**: read it, identify which branches already have coverage, and list the gaps. Only add tests for uncovered branches — do not overwrite passing tests unless the node's interface changed.
+
+---
+
+## 3. Write or update the `#[cfg(test)] mod tests` block
+
+Append the module to the bottom of `src/nodes/<name>.rs`, with one `#[tokio::test]` per uncovered branch. All utils must be mocked.
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     struct MockState {
-        field: i32,
-    }
-    impl HasField for MockState {
-        fn field(&self) -> i32 { self.field }
-        fn set_field(&mut self, value: i32) { self.field = value; }
+        count: i32,
     }
 
-    struct MockUtils;
-    #[async_trait]
+    impl HasCount for MockState {
+        fn count(&self) -> i32 {
+            self.count
+        }
+        fn set_count(&mut self, count: i32) {
+            self.count = count;
+        }
+    }
+
+    struct MockUtils {
+        input: &'static str,
+    }
+
     impl Utils for MockUtils {
-        fn log(&self, _message: &str) {}
+        // Override each util to be deterministic and side-effect-free.
+        fn read_line(&self, _message: &str) -> Option<String> {
+            Some(self.input.to_string())
+        }
+        fn print(&self, _message: &str) {}
+    }
+
+    fn node(input: &'static str) -> Node<MockState, &'static str> {
+        factory(
+            Edges {
+                on_success: Some("NEXT"),
+                on_error: Some("ERROR"),
+            },
+            Some(Arc::new(MockUtils { input })),
+        )
     }
 
     #[tokio::test]
-    async fn test_my_node_success() {
-        let mut edges = HashMap::new();
-        edges.insert(Edge::OnSuccess, Some("next".to_string()));
-        
-        let node = MyNode::new(edges, Box::new(MockUtils));
-        let state = MockState { field: 0 };
-        
-        let (next, next_state) = node.run(state, "start".to_string()).await;
-        
-        assert_eq!(next, Some("next".to_string()));
-        assert_eq!(next_state.field, 1);
+    async fn transitions_to_on_success_with_input_number() {
+        let (next, state) = node("42")(MockState { count: 0 }).await;
+
+        assert_eq!(next, Some("NEXT"));
+        assert_eq!(state.count, 42);
+    }
+
+    #[tokio::test]
+    async fn transitions_to_on_error_if_input_is_invalid() {
+        let (next, state) = node("abc")(MockState { count: 123 }).await;
+
+        assert_eq!(next, Some("ERROR"));
+        assert_eq!(state.count, 123);
     }
 }
 ```
 
+For **async utils**, mock them with an immediately ready future (the node module already imports `BoxFuture`, so `use super::*;` brings it in):
+
+```rust
+    impl Utils for MockUtils {
+        fn print(&self, _message: &str) {}
+        fn sleep(&self, _ms: u64) -> BoxFuture<'static, ()> {
+            Box::pin(async {})
+        }
+        fn random(&self) -> f64 {
+            self.random
+        }
+    }
+```
+
+To assert on what a util received, record it behind a `std::sync::Mutex` in a `#[derive(Default)]` mock, keep an `Arc` to it, and pass `Some(utils.clone())` to `factory` (see `src/nodes/stop.rs`).
+
 ### Test rules
 
-- **Mock Utils**: Create a `MockUtils` struct that implements the `Utils` trait deterministically.
-- **Mock State**: Create a `MockState` struct that implements the required state traits.
-- **Async Tests**: Use `#[tokio::test]` and `async fn`.
-- **Assertions**: Use `assert_eq!` to verify the next node ID and the updated state.
-- **Coverage**: Ensure every edge/branch is tested.
+- **One test per branch** — cover every `edges.on_<x>.clone()` return.
+- **Mock all `Utils`** — a `MockUtils` struct with no real I/O, network, or timing.
+- **Mock the state** — a `MockState` struct implementing only the traits the node requires.
+- **Use `&'static str` IDs** such as `"NEXT"` and `"ERROR"` for `K`, and `None` for terminal edges.
+- **Destructure the result** as `let (next, state) = ... .await;` and assert `next` for the next node ID and `state` for the updated state.
+- **Test names**: `snake_case`, `<expected_behaviour>_<condition>` (e.g., `transitions_to_on_error_if_input_is_invalid`).
+- **Always `#[tokio::test]` and `.await`** — every node returns a future, even synchronous ones.
 
 ---
 
-## 3. Checklist before finishing
+## 4. Run tests — must pass
 
-- [ ] `#[cfg(test)]` module exists at the bottom of the node file.
-- [ ] `MockUtils` and `MockState` are implemented.
-- [ ] All logic branches are covered by tests.
-- [ ] Run `cargo test` to verify.
+```bash
+cargo test nodes::<name>::
+```
+
+All tests must pass. If any fail, fix the implementation (not the tests).
+
+---
+
+## 5. Checklist before finishing
+
+- [ ] `src/nodes/<name>.rs` ends with a `#[cfg(test)] mod tests` block.
+- [ ] It has one `#[tokio::test]` per branch.
+- [ ] `MockState` and `MockUtils` are defined — no real I/O, network, or timing.
+- [ ] Every edge path has a dedicated test.
+- [ ] Test names follow `<expected_behaviour>_<condition>` in `snake_case`.
+- [ ] All tests pass (`cargo test`).
