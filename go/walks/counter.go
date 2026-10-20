@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/argenkiwi/ambler/go"
-	"github.com/argenkiwi/ambler/go/nodes"
+	"github.com/argenkiwi/ambler/go/nodes/count"
+	"github.com/argenkiwi/ambler/go/nodes/start"
+	"github.com/argenkiwi/ambler/go/nodes/stop"
 )
 
 // State implements nodes.HasCount for the counter walk.
@@ -26,42 +28,34 @@ func (s State) WithCount(count int) State {
 type NodeID string
 
 const (
-	StartID NodeID = "start"
-	CountID NodeID = "count"
-	StopID  NodeID = "stop"
+	Start NodeID = "START"
+	Count NodeID = "COUNT"
+	Stop  NodeID = "STOP"
 )
 
+var amble = ambler.Ambler(map[NodeID]func() ambler.Node[State, NodeID]{
+	Start: func() ambler.Node[State, NodeID] {
+		return start.Factory[State](start.Edges[NodeID]{OnSuccess: ambler.Ptr(Count), OnError: ambler.Ptr(Start)}, nil)
+	},
+	Count: func() ambler.Node[State, NodeID] {
+		return count.Factory[State](count.Edges[NodeID]{OnCount: ambler.Ptr(Count), OnStop: ambler.Ptr(Stop)}, nil)
+	},
+	Stop: func() ambler.Node[State, NodeID] {
+		return stop.Factory[State](stop.Edges[NodeID]{OnDone: nil}, nil)
+	},
+})
+
 func main() {
-	// Wire the nodes together.
-	nodesMap := map[NodeID]ambler.Node[State, NodeID]{
-		StartID: nodes.CreateStartNode[State, NodeID](nodes.StartNodeEdges[NodeID]{
-			OnSuccess: ambler.Ptr(CountID),
-			OnError:   ambler.Ptr(StartID),
-		}, nil),
-		CountID: nodes.CreateCountNode[State, NodeID](nodes.CountNodeEdges[NodeID]{
-			OnCount: ambler.Ptr(CountID),
-			OnStop:  ambler.Ptr(StopID),
-		}, nil),
-		StopID: nodes.CreateStopNode[State, NodeID](nodes.StopNodeEdges[NodeID]{
-			OnDone: nil, // Terminal node
-		}, nil),
-	}
-
-	// Create the Ambler executor.
-	amble := ambler.Ambler(nodesMap)
-
 	ctx := context.Background()
-	var nodeID *NodeID = ambler.Ptr(StartID)
+	nodeID := ambler.Ptr(Start)
 	state := State{Count: 0}
 
-	// Run the state machine.
 	for nodeID != nil {
 		next, err := amble(ctx, *nodeID, state)
 		if err != nil {
 			fmt.Printf("Error during execution: %v\n", err)
 			break
 		}
-		nodeID = next.NodeID
-		state = next.State
+		nodeID, state = next.NodeID, next.State
 	}
 }
