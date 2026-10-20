@@ -3,7 +3,7 @@ name: ambler-walk
 description: Creates a complete Ambler walk — the TypeScript wiring file (walks/<name>.ts) and the Markdown spec (specs/<name>.md) — and ensures all required nodes exist. Use this whenever a user wants to add a new program or flow to an Ambler project, even if they say "new walk", "add a program", "wire up these nodes", or just describe what they want the app to do.
 metadata:
   author: leandro
-  version: "2.0"
+  version: "2.5"
 ---
 
 # Ambler Walk
@@ -12,8 +12,6 @@ This skill guides you in creating a complete Ambler walk. A walk is a state-mach
 
 1. `walks/<name>.ts` — TypeScript file defining the shared `State`, `initialState`, and the wired node graph.
 2. `specs/<name>.md` — Markdown specification describing the shared state and the logic/transitions of each step.
-
-The canonical reference is `walks/counter.ts` and `specs/counter.md`.
 
 ---
 
@@ -25,29 +23,37 @@ The canonical reference is `walks/counter.ts` and `specs/counter.md`.
 
 ---
 
-## Step 2 — Ensure Nodes Exist
+## Step 2 — Research and Reuse
 
-For each node the walk requires:
+Before creating new nodes, research existing ones to promote reuse and consistency:
 
-- Check if a file `nodes/<nodeName>.ts` already exists (use Glob).
-- If it does **not** exist, create it using the `/ambler-node` skill **before** writing the walk.
-- Also ensure `nodes/tests/<nodeName>.test.ts` exists for every new node using the `/ambler-test` skill, then verify with `deno test nodes/tests/<nodeName>.test.ts`.
+- **Review Existing Specs:** Browse `specs/*.md` to identify nodes that already implement the required logic (e.g., "Ollama Check", "Model Select"). This is more efficient than reading source code and helps maintain architectural alignment.
+- **Check Node Implementation:** For each node identified, verify its existence in `nodes/<nodeName>.ts`.
 
 ---
 
 ## Step 3 — Create the Specification File (`specs/<name>.md`)
 
-Create the Markdown spec **before** the TypeScript file using the `/ambler-spec` skill, so it acts as a blueprint.
+Create the Markdown spec using the `/ambler-spec` skill. This acts as the **blueprint** for the entire walk, defining the shared state and the logic for every node.
 
 ---
 
-## Step 4 — Create the Wiring File (`walks/<name>.ts`)
+## Step 4 — Ensure Nodes Exist
+
+For each node defined in the specification:
+
+- If it does **not** exist in `nodes/<nodeName>.ts`, create it using the `/ambler-node` skill. This runs a full TDD pass — skeleton, tests (red), implementation, tests (green) — before completing. No separate test step is needed.
+- If the node already exists but has no tests, use the `/ambler-test` skill to retrofit coverage.
+
+---
+
+## Step 5 — Create the Wiring File (`walks/<name>.ts`)
 
 ```typescript
 import { ambler } from "../ambler.ts";
-import { factory as startNode } from "../nodes/start.ts";
-import { factory as nextNode } from "../nodes/next.ts";
-import { factory as stopNode } from "../nodes/stop.ts";
+import defer * as startNode from "../nodes/start.ts";
+import defer * as nextNode from "../nodes/next.ts";
+import defer * as stopNode from "../nodes/stop.ts";
 
 export interface State {
   field: string;
@@ -56,9 +62,9 @@ export interface State {
 type NodeId = "start" | "next" | "stop";
 
 const amble = ambler<State, NodeId>({
-  start: () => startNode({ onSuccess: "next", onError: "start" }),
-  next:  () => nextNode({ onComplete: "stop" }),
-  stop:  () => stopNode<NodeId>({ onDone: null }),
+  start: () => startNode.factory({ onSuccess: "next", onError: "start" }),
+  next:  () => nextNode.factory({ onComplete: "stop" }),
+  stop:  () => stopNode.factory({ onDone: null }),
 });
 
 if (import.meta.main) {
@@ -76,21 +82,49 @@ if (import.meta.main) {
 
 **Key rules:**
 - Import `ambler` from `../ambler.ts`.
-- Import each node's `factory` as a named import and alias it for clarity.
+- Use `import defer * as <alias>` for every node to support lazy loading (Deno 2.8+).
 - Define `State` interface at the top of the file.
 - Define `NodeId` union type for node identifiers.
 - Provide a map of node IDs to **functions that return nodes** to `ambler<State, NodeId>({ ... })`.
-- Use arrow functions to defer node creation: `start: () => startNode({ ... })`.
+- Use arrow functions to defer node creation: `start: () => startNode.factory({ ... })`.
 - Call `ambler` outside the `if` guard and use `instanceof Promise` in the loop.
 
 ---
 
-## Step 5 — Verify
+## Step 5 — Add Deno Task
+
+Add (or update) an entry in `deno.json` under `tasks` for this walk:
+
+```json
+"<name>": "deno run [permissions] walks/<name>.ts"
+```
+
+Choose permissions based on the Deno APIs used by the walk's nodes:
+
+| API used by nodes | Permission flag |
+|---|---|
+| `Deno.readTextFile`, `Deno.copyFile`, `Deno.stat` | `--allow-read` |
+| `Deno.writeTextFile`, `Deno.mkdir`, `Deno.copyFile` (dst) | `--allow-write` |
+| `Deno.env` | `--allow-env` |
+| `fetch` / network calls | `--allow-net` |
+| None of the above (only stdin/stdout) | *(no flags needed)* |
+
+Example for a walk with file I/O:
+
+```json
+"my-walk": "deno run --allow-read --allow-write walks/my-walk.ts"
+```
+
+Users pass arguments after the task name: `deno task my-walk <arg1> <arg2>`
+
+---
+
+## Step 6 — Verify
 
 Run the walk to confirm it behaves as specified:
 
 ```
-deno run --allow-all walks/<name>.ts
+deno task <name>
 ```
 
 If the walk has new nodes, also run:
@@ -107,20 +141,7 @@ Before finishing, confirm:
 
 - [ ] `specs/<name>.md` exists and matches the node names in the `.ts` file.
 - [ ] `walks/<name>.ts` exists with the correct `State`, `initialState`, and wired `nodes`.
-- [ ] Every node used in the walk has a corresponding `nodes/<nodeName>.ts`.
-- [ ] Every new node has a `nodes/tests/<nodeName>.test.ts` with at least one test.
-- [ ] All tests pass.
+- [ ] Every node used in the walk has a corresponding `nodes/<nodeName>.ts` and passing tests (enforced by `/ambler-node`).
+- [ ] All tests pass (`deno test nodes/tests/`).
+- [ ] `deno.json` has a task for `<name>` with the correct permission flags.
 - [ ] The walk runs end-to-end without errors.
-
----
-
-## Reference Files
-
-| File | Purpose |
-|------|---------|
-| `walks/counter.ts` | Canonical wiring example |
-| `specs/counter.md` | Canonical specification example |
-| `nodes/start.ts` | Example node with input + error handling |
-| `nodes/count.ts` | Example node with randomized transition |
-| `nodes/stop.ts` | Example terminal node (returns `null`) |
-| `ambler.ts` | Core primitives: `Node`, `Edges`, `Next`, `ambler` |

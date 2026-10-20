@@ -18,11 +18,23 @@ export type Node<S, K extends string> = (
   state: S,
 ) => Next<S, K> | Promise<Next<S, K>>;
 
-export type NodeFactory<E extends string, NS, U = unknown> = <
+/**
+ * A factory function that creates a {@link Node}.
+ *
+ * It decouples the node's internal logic from the specific node IDs (edges) and
+ * external dependencies (utils) used in a specific walk.
+ *
+ * @template NS The base state type required by this node.
+ * @template E The union of valid edge names for this node.
+ * @template U The type of the utilities object provided to the node.
+ */
+export type NodeFactory<NS, E extends string, U = unknown> = <
   N extends string,
-  S extends NS = NS,
+  S extends NS,
 >(
-  edges: Record<E, N | null>,
+  /** A map of edge names to their target node IDs in the walk. */
+  edges: Record<E, NoInfer<N> | null>,
+  /** Optional utilities or dependencies required by the node. */
   utils?: U,
 ) => Node<S, N>;
 

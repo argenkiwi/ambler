@@ -1,22 +1,22 @@
 import { ambler } from "../ambler.ts";
-import { factory as startNode } from "../nodes/start.ts";
-import { factory as countNode } from "../nodes/count.ts";
-import { factory as stopNode } from "../nodes/stop.ts";
+import defer * as startNode from "../nodes/start.ts";
+import defer * as countNode from "../nodes/count.ts";
+import defer * as stopNode from "../nodes/stop.ts";
 
 export interface State {
   count: number;
 }
 
-type NodeId = "start" | "count" | "stop";
+type NodeId = "START" | "COUNT" | "STOP";
 
 const amble = ambler<State, NodeId>({
-  start: () => startNode({ onSuccess: "count", onError: "start" }),
-  count: () => countNode({ onCount: "count", onStop: "stop" }),
-  stop: () => stopNode<NodeId, State>({ onDone: null }),
+  START: () => startNode.factory({ onSuccess: "COUNT", onError: "START" }),
+  COUNT: () => countNode.factory({ onCount: "COUNT", onStop: "STOP" }),
+  STOP: () => stopNode.factory({ onDone: null }),
 });
 
 if (import.meta.main) {
-  let nodeId: NodeId | null = "start";
+  let nodeId: NodeId | null = "START";
   let state: State = {
     count: 0,
   };
