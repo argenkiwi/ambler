@@ -1,84 +1,142 @@
+---
 name: ambler-test
-description: Creates a test file for an Ambler node in the nodes/ directory. Use this whenever the user wants tests for a node — including "test this node", "add tests", "write tests for X", or any time a node is created without a corresponding test file.
+description: Adds or updates tests for an existing Ambler node in Python that already has an implementation. Use this when a node exists in nodes/<name>.py but has no nodes/test_<name>.py, when tests need extending after new branches were added, or when retrofitting TDD onto existing code. For creating a brand-new node with tests, use `/ambler-node` instead.
 metadata:
   author: leandro
-  version: "1.2-py"
+  version: "3.0-py"
+---
 
 # Ambler Test (Python)
 
-Follow these steps to create a test file for a node in the `nodes/` directory.
+Follow these steps to add or update tests for an existing node in `nodes/`.
 
-## 1. Gather requirements
+> For brand-new nodes, use `/ambler-node` — it creates both the implementation and tests via a TDD cycle. This skill is for retrofitting tests onto nodes that already exist.
 
-Before writing any code, determine:
-
-- **Node name**: The snake_case name (e.g., `retry`, `prompt`, `validate`) — the test file will be `nodes/test_<name>_node.py`.
-- **Node's State, Edges, and Utils**: Read `nodes/<name>_node.py` to understand what the node does, which edges it has, and what utils it uses.
-- **Branches to cover**: Every `return edges["onEdgeName"], ...` line is one branch; terminal nodes return `None, state`. List them all before writing any test.
+All commands are run from the project root (the directory containing `ambler.py`).
 
 ---
 
-## 2. Determine sync vs async
+## 1. Read the existing node
 
-Look at the node's `create` return function:
+Read `nodes/<name>.py` in full. Identify:
 
-- `def node_fn(state, key): ...` — **synchronous**: tests use `unittest.TestCase`.
-- `async def node_fn(state, key): ...` — **asynchronous**: tests use `unittest.IsolatedAsyncioTestCase`.
+- **`State`**, **`Edge`**, and **`Utils`** types.
+- **Sync vs async**: Does the factory return `def node(state)` or `async def node(state)`?
+- **All branches**: Every `return edges["onEdgeName"], ...` line is one branch. List them all — each becomes a test.
 
 ---
 
-## 3. Create `nodes/test_<name>_node.py`
+## 2. Check for existing tests
 
-Write one test method per meaningful branch of logic.
+Check whether `nodes/test_<name>.py` exists.
 
-**Synchronous node:**
+- If it **does not exist**: write a complete new test file covering every branch.
+- If it **does exist**: read it, identify which branches already have coverage, and list the gaps. Only add tests for uncovered branches — do not overwrite passing tests unless the node's interface changed.
+
+---
+
+## 3. Write or update `nodes/test_<name>.py`
+
+Write one test method per uncovered branch. All utils must be mocked.
+
+**Synchronous node** (`unittest.TestCase`):
 
 ```python
 import unittest
-from <name>_node import create
+from nodes.<name> import factory
+
+
+class MockUtils:
+    def __init__(self, input):
+        self.input = input
+
+    def read_line(self, message):
+        return self.input
+
+    def print(self, message):
+        pass
+    # Implement each util to be deterministic and side-effect-free.
+
 
 class Test<Name>Node(unittest.TestCase):
-    def test_<name>_node_should_<behavior>_when_<condition>(self):
-        initial_state = { "count": 0 }
-        
-        class MockUtils:
-            def log(self, message): pass
-            # Override each util to be deterministic and side-effect-free.
+    def test_<behaviour>_when_<condition>(self):
+        node = factory({"onSuccess": "NEXT", "onError": "ERROR"}, MockUtils("42"))
+        next_id, next_state = node({"count": 0})
 
-        node = create({"onSuccess": "next"}, MockUtils())
-        next_id, next_state = node(initial_state, "start")
+        self.assertEqual(next_id, "NEXT")
+        self.assertEqual(next_state["count"], expected_value)
 
-        self.assertEqual(next_id, "next")
-        self.assertEqual(next_state["some_field"], value)
+
+if __name__ == "__main__":
+    unittest.main()
 ```
 
-**Asynchronous node:**
+**Asynchronous node** (`unittest.IsolatedAsyncioTestCase`):
 
 ```python
 import unittest
-from <name>_node import create
+from nodes.<name> import factory
+
+
+class MockUtils:
+    def __init__(self, random):
+        self._random = random
+
+    def print(self, message):
+        pass
+
+    async def sleep(self, ms):
+        pass
+
+    def random(self):
+        return self._random
+    # Implement each util to be deterministic and side-effect-free.
+
 
 class Test<Name>Node(unittest.IsolatedAsyncioTestCase):
-    async def test_<name>_node_should_<behavior>_when_<condition>(self):
-        initial_state = { "count": 0 }
-        
-        class MockUtils:
-            def log(self, message): pass
-            async def sleep(self, ms): pass
-            # Override each util to be deterministic and side-effect-free.
+    async def test_<behaviour>_when_<condition>(self):
+        node = factory({"onSuccess": "NEXT", "onError": "ERROR"}, MockUtils(0.6))
+        next_id, next_state = await node({"count": 0})
 
-        node = create({"onSuccess": "next"}, MockUtils())
-        next_id, next_state = await node(initial_state, "start")
+        self.assertEqual(next_id, "NEXT")
+        self.assertEqual(next_state["count"], expected_value)
 
-        self.assertEqual(next_id, "next")
-        self.assertEqual(next_state["some_field"], value)
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+### Test rules
+
+- **One test per branch** — cover every `edges["onEdgeName"]` return.
+- **Mock all `Utils`** — a `MockUtils` class implementing every method of the node's `Utils` `Protocol`; no real I/O, network, or timing. Async utils (e.g., `sleep`) must stay `async def` in the mock.
+- **Unpack the result** as `next_id, next_state` and assert on both. For an edge wired to `None`, use `self.assertIsNone(next_id)`.
+- **Edge targets**: Use placeholder node IDs such as `"NEXT"` and `"ERROR"` (or `None` for terminal edges) in the `edges` map.
+- **Test names**: `class Test<Name>Node` with methods named `test_<expected_behaviour>_when_<condition>`.
+- **Do not use `IsolatedAsyncioTestCase` or `await` for synchronous nodes** — it masks a node accidentally returning a coroutine.
+
+---
+
+## 4. Run tests — must pass
+
+```bash
+python3 -m unittest nodes.test_<name>
+```
+
+All tests must pass. If any fail, fix the implementation (not the tests).
+
+To run every node test:
+
+```bash
+python3 -m unittest discover -s nodes -t .
 ```
 
 ---
 
-## 4. Checklist before finishing
+## 5. Checklist before finishing
 
-- [ ] `nodes/test_<name>_node.py` exists with one test per branch.
-- [ ] All `Utils` are mocked.
+- [ ] `nodes/test_<name>.py` has one test per branch.
+- [ ] All `Utils` are mocked — no real I/O, network, or timing.
 - [ ] Every edge path has a dedicated test.
-- [ ] Run `python3 -m unittest nodes/test_<name>_node.py` to verify.
+- [ ] Test methods follow `test_<expected_behaviour>_when_<condition>`.
+- [ ] All tests pass.
