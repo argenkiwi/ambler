@@ -1,21 +1,30 @@
-from typing import Dict, Any, Protocol
-from ambler import Edges, Node, Next
+from typing import Literal, Optional, Protocol, TypedDict, TypeVar
+from ambler import Edges, Node
+
+K = TypeVar("K", bound=str)
+
+
+class State(TypedDict):
+    count: int
+
+
+Edge = Literal["onDone"]
+
 
 class Utils(Protocol):
-    def log(self, message: str) -> None:
-        ...
+    def print(self, message: str) -> None: ...
+
 
 class DefaultUtils:
-    def log(self, message: str) -> None:
+    def print(self, message: str) -> None:
         print(message)
 
-def create(
-    edges: Edges[str, str],
-    utils: Utils = DefaultUtils()
-) -> Node[Dict[str, Any], str]:
-    def node_fn(state: Dict[str, Any], key: str) -> Next[Dict[str, Any], str]:
-        utils.log(f"Final count: {state['count']}")
-        utils.log("Counting process terminated.")
+
+def factory(edges: Edges[Edge, K], utils: Optional[Utils] = None) -> Node[State, K]:
+    utils = utils or DefaultUtils()
+
+    def node(state: State):
+        utils.print(f"Final count: {state['count']}")
         return edges["onDone"], state
 
-    return node_fn
+    return node

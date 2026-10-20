@@ -1,17 +1,25 @@
 import unittest
-from stop_node import create
+from nodes.stop import factory
+
+
+class MockUtils:
+    def __init__(self):
+        self.message = None
+
+    def print(self, message):
+        self.message = message
+
 
 class TestStopNode(unittest.TestCase):
-    def test_stop_node_done(self):
-        state = {"count": 10}
-        class MockUtils:
-            def log(self, message): pass
-        
-        node = create({"onDone": None}, MockUtils())
-        next_id, next_state = node(state, "stop")
-        
-        self.assertEqual(next_id, None)
-        self.assertEqual(next_state["count"], 10)
+    def test_prints_final_count_and_transitions_to_on_done(self):
+        utils = MockUtils()
+        node = factory({"onDone": None}, utils)
+        next_id, next_state = node({"count": 15})
+
+        self.assertIsNone(next_id)
+        self.assertEqual(next_state["count"], 15)
+        self.assertEqual(utils.message, "Final count: 15")
+
 
 if __name__ == "__main__":
     unittest.main()
