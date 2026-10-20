@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "ambler-init": {
+      "source": "argenkiwi/ambler-ts",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ambler-init/SKILL.md",
+      "computedHash": "e36c088e7ea5121e3aaa88e48911051e85de1b4bde5471851676584b60f6ea8f"
+    },
+    "ambler-node": {
+      "source": "argenkiwi/ambler-ts",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ambler-node/SKILL.md",
+      "computedHash": "a3f61a6d026868292e00531d0093e6030c8bcc555cc861f2d39ef8ac6ebacc5e"
+    },
+    "ambler-spec": {
+      "source": "argenkiwi/ambler-ts",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ambler-spec/SKILL.md",
+      "computedHash": "24605f2ec0e53c02c4d2207a8a8befb7265c96308ec3448745ae37b154d5bf3e"
+    },
+    "ambler-test": {
+      "source": "argenkiwi/ambler-ts",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ambler-test/SKILL.md",
+      "computedHash": "bb2fa56f380e5aecf029faa7422332222fcee079c080389901887a663a1575e6"
+    },
+    "ambler-util": {
+      "source": "argenkiwi/ambler-ts",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ambler-util/SKILL.md",
+      "computedHash": "ec8614c2eebd2cea1eec1db33efa0bfc667a85f3e529ad64e9659e4c57681356"
+    },
+    "ambler-walk": {
+      "source": "argenkiwi/ambler-ts",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ambler-walk/SKILL.md",
+      "computedHash": "d637fcf7441516200332a8292e98fb774c405cf620ae012034e6b0c8cbbbf8b5"
+    }
+  }
+}
