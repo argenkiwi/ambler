@@ -1,37 +1,50 @@
+use futures::future::BoxFuture;
 use std::collections::HashMap;
-use async_trait::async_trait;
+use std::fmt::Debug;
+use std::hash::Hash;
 
 pub mod nodes;
 
-/// Represents the result of a node execution: (next_node_id, next_state)
+/// The result of a node's execution: the next node ID (or `None` to stop) and the updated state.
 pub type Next<S, K> = (Option<K>, S);
 
-/// A trait representing a node in the state machine.
-#[async_trait]
-pub trait Node<S, K>: Send + Sync {
-    async fn run(&self, state: S, key: K) -> Next<S, K>;
-}
+/// A processing step in the state machine.
+///
+/// Receives the current state and returns a future resolving to a [`Next`] tuple.
+pub type Node<S, K> = Box<dyn Fn(S) -> BoxFuture<'static, Next<S, K>> + Send + Sync>;
 
-/// The single-step executor for the state machine.
-pub struct Ambler<S, K>
-where
-    K: std::hash::Hash + std::cmp::Eq + Clone + Send + Sync,
-    S: Send + Sync,
-{
-    nodes: HashMap<K, Box<dyn Node<S, K>>>,
+/// A deferred constructor for a [`Node`], called once on first use.
+pub type NodeThunk<S, K> = Box<dyn Fn() -> Node<S, K> + Send + Sync>;
+
+/// A state machine runner built from a map of node thunks.
+///
+/// Each thunk is called once on first use; the resulting node is cached for subsequent calls.
+pub struct Ambler<S, K> {
+    nodes: HashMap<K, NodeThunk<S, K>>,
+    loaded: HashMap<K, Node<S, K>>,
 }
 
 impl<S, K> Ambler<S, K>
 where
-    K: std::hash::Hash + std::cmp::Eq + Clone + Send + Sync + 'static,
-    S: Send + Sync + 'static,
+    K: Hash + Eq + Clone + Debug,
 {
-    pub fn new(nodes: HashMap<K, Box<dyn Node<S, K>>>) -> Self {
-        Self { nodes }
+    pub fn new(nodes: HashMap<K, NodeThunk<S, K>>) -> Self {
+        Self {
+            nodes,
+            loaded: HashMap::new(),
+        }
     }
 
-    pub async fn step(&self, node_id: K, state: S) -> Next<S, K> {
-        let node = self.nodes.get(&node_id).expect("Node not found");
-        node.run(state, node_id).await
+    /// Runs the node identified by `node_id` against `state`.
+    ///
+    /// # Panics
+    ///
+    /// If `node_id` is not present in the node map.
+    pub async fn step(&mut self, node_id: K, state: S) -> Next<S, K> {
+        let Some(thunk) = self.nodes.get(&node_id) else {
+            panic!("Node not found: {node_id:?}");
+        };
+        let node = self.loaded.entry(node_id).or_insert_with(|| thunk());
+        node(state).await
     }
 }
