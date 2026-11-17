@@ -14,7 +14,7 @@ cargo install --git https://github.com/argenkiwi/amble
 
 ```sh
 amble new my-app --example        # a project, with the counter walk as a reference
-cd my-app
+cd my-app                         # (or run `amble new` in an empty folder to use it in place)
 
 amble node ask --outcomes answered,invalid --fallible --state name:String
 amble node greet --terminal --state name

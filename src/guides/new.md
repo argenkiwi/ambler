@@ -1,8 +1,10 @@
 # amble new
 
-    amble new <name> [--example]
+    amble new [<name>] [--example]
 
 Creates the folder `<name>` with an empty Ambler project. `<name>` is the Cargo package name: lowercase letters, digits, `-` and `_`. Fails if the folder exists.
+
+Without `<name>`, it makes the current folder the project, named after the folder. The folder must be empty except for `.git`, and its name must be a valid package name.
 
 It writes:
 
