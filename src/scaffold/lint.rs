@@ -424,12 +424,10 @@ mod tests {
 
     /// The example project, as `amble new app --example` writes it.
     fn example() -> BTreeMap<String, String> {
-        project("app", true)
+        project("app", "", true)
             .into_iter()
             .filter_map(|change| match change {
-                Change::Write { path, contents, .. } => {
-                    Some((path.strip_prefix("app/")?.to_string(), contents))
-                }
+                Change::Write { path, contents, .. } => Some((path, contents)),
                 Change::Symlink { .. } => None,
             })
             .filter(|(path, _)| {
@@ -463,12 +461,10 @@ mod tests {
 
     #[test]
     fn an_empty_project_follows_every_convention() {
-        let files: BTreeMap<String, String> = project("app", false)
+        let files: BTreeMap<String, String> = project("app", "", false)
             .into_iter()
             .filter_map(|change| match change {
-                Change::Write { path, contents, .. } => {
-                    Some((path.strip_prefix("app/")?.to_string(), contents))
-                }
+                Change::Write { path, contents, .. } => Some((path, contents)),
                 Change::Symlink { .. } => None,
             })
             .collect();

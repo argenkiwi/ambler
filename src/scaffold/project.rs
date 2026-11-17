@@ -57,10 +57,17 @@ fn registered(source: &str, name: &str) -> String {
     register(source, name).unwrap_or_else(|| source.to_string())
 }
 
-/// Every file of a new project in the folder `package`, with the counter walk if `example`.
+/// Every file of a new project named `package` in `folder` (the current folder if empty), with
+/// the counter walk if `example`.
 #[must_use]
-pub fn project(package: &str, example: bool) -> Vec<Change> {
-    let at = |path: &str| format!("{package}/{path}");
+pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
+    let at = |path: &str| {
+        if folder.is_empty() {
+            path.to_string()
+        } else {
+            format!("{folder}/{path}")
+        }
+    };
     let named = |template: &str| template.replace("{{package}}", package);
     let extra = if example { "rand = \"0.9\"\n" } else { "" };
 
@@ -136,7 +143,7 @@ mod tests {
 
     #[test]
     fn an_empty_project_has_the_engine_the_folders_and_the_context_files() {
-        let changes = project("my-app", false);
+        let changes = project("my-app", "my-app", false);
 
         assert!(contents(&changes, "my-app/Cargo.toml").contains("name = \"my-app\"\n"));
         assert!(!contents(&changes, "my-app/Cargo.toml").contains("{{"));
@@ -158,8 +165,20 @@ mod tests {
     }
 
     #[test]
+    fn a_project_in_the_current_folder_has_root_relative_paths() {
+        let changes = project("my-app", "", false);
+
+        assert!(contents(&changes, "Cargo.toml").contains("name = \"my-app\"\n"));
+        assert!(contents(&changes, "src/engine.rs").contains("pub trait Walk"));
+        assert!(changes.contains(&Change::Symlink {
+            path: ".claude/skills".to_string(),
+            target: "../.agents/skills".to_string(),
+        }));
+    }
+
+    #[test]
     fn the_example_adds_the_counter_walk_registered_and_runnable() {
-        let changes = project("my-app", true);
+        let changes = project("my-app", "my-app", true);
 
         assert!(contents(&changes, "my-app/Cargo.toml").contains("rand = \"0.9\"\n"));
         assert_eq!(

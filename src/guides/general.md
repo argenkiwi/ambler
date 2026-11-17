@@ -2,7 +2,7 @@
 
 Scaffolds and checks Ambler projects: programs built as walks (state machines) of small, tested nodes.
 
-    amble new <name> [--example]         create a project
+    amble new [<name>] [--example]       create a project (no name: in this empty folder)
     amble node <name> …                  add a node: its contract, a todo body, failing tests
     amble util <name>                    add a module of side-effectful functions
     amble walk <name> --nodes … --edge … wire nodes into a walk, with its spec and runner

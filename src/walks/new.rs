@@ -61,7 +61,7 @@ where
     }
 }
 
-/// Runs `amble new <name> [--example]`.
+/// Runs `amble new [<name>] [--example]`.
 ///
 /// # Errors
 ///
@@ -116,13 +116,40 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn reports_a_rejected_invocation_and_writes_nothing() {
-        let fake = Fake::default();
+    async fn without_a_name_writes_the_project_in_the_empty_current_folder() {
+        let fake = Fake {
+            folder: Some("my-app"),
+            ..Fake::default()
+        };
 
         let state = new(&fake, &[]).await;
 
+        assert_eq!(state.message, None);
+        assert!(
+            fake.file("src/engine.rs")
+                .unwrap()
+                .contains("pub trait Node")
+        );
+        assert_eq!(
+            fake.file(".claude/skills").as_deref(),
+            Some("-> ../.agents/skills")
+        );
+        assert!(
+            fake.printed()
+                .last()
+                .unwrap()
+                .starts_with("Created my-app here.")
+        );
+    }
+
+    #[tokio::test]
+    async fn reports_a_rejected_invocation_and_writes_nothing() {
+        let fake = Fake::default();
+
+        let state = new(&fake, &["a", "b"]).await;
+
         assert!(state.finish().is_err());
-        assert_eq!(fake.eprinted(), ["usage: amble new <name> [--example]"]);
+        assert_eq!(fake.eprinted(), ["usage: amble new [<name>] [--example]"]);
         assert!(fake.paths().is_empty());
         assert!(fake.printed().is_empty());
     }

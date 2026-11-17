@@ -10,6 +10,26 @@ pub fn exists(path: &str) -> bool {
     Path::new(path).exists()
 }
 
+/// The name of the current folder, if it has one.
+#[must_use]
+pub fn current_folder_name() -> Option<String> {
+    std::env::current_dir()
+        .ok()?
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+}
+
+/// The names of the entries in the folder at `path`.
+///
+/// # Errors
+///
+/// Returns the I/O error if the folder cannot be read.
+pub fn entries(path: &str) -> io::Result<Vec<String>> {
+    std::fs::read_dir(path)?
+        .map(|entry| entry.map(|e| e.file_name().to_string_lossy().into_owned()))
+        .collect()
+}
+
 /// Reads the file at `path`.
 ///
 /// # Errors

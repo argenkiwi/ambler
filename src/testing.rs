@@ -23,6 +23,8 @@ pub(crate) struct Fake {
     pub unreadable: bool,
     /// The cargo subcommand that fails, or `"missing"` if cargo cannot be run at all.
     pub failing: Option<&'static str>,
+    /// The name of the current folder, if it has one.
+    pub folder: Option<&'static str>,
 }
 
 impl Fake {
@@ -88,6 +90,26 @@ impl Fake {
 impl plan_project::Utils for &Fake {
     fn exists(&self, path: &str) -> bool {
         Fake::exists(self, path)
+    }
+
+    fn current_folder(&self) -> Option<String> {
+        self.folder.map(str::to_string)
+    }
+
+    fn entries(&self, path: &str) -> io::Result<Vec<String>> {
+        let prefix = if path == "." {
+            String::new()
+        } else {
+            format!("{path}/")
+        };
+        let mut entries: Vec<String> = self
+            .paths()
+            .iter()
+            .filter_map(|file| file.strip_prefix(&prefix))
+            .map(|rest| rest.split('/').next().unwrap_or(rest).to_string())
+            .collect();
+        entries.dedup();
+        Ok(entries)
     }
 }
 
