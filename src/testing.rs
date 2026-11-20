@@ -1,9 +1,10 @@
 //! Test doubles shared by the node and walk tests: one fake for every node's `Utils`.
 
 use crate::nodes::{
-    guide, inspect, plan_node, plan_project, plan_util, plan_walk, report, verify, write,
+    brief_agent, check_project, checkpoint, choose_task, guide, inspect, plan_node, plan_pave,
+    plan_project, plan_util, plan_walk, report, roll_back, verify, write,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::io;
 use std::sync::Mutex;
 
@@ -21,10 +22,26 @@ pub(crate) struct Fake {
     pub unwritable: Option<&'static str>,
     /// Whether reading the project fails.
     pub unreadable: bool,
-    /// The cargo subcommand that fails, or `"missing"` if cargo cannot be run at all.
+    /// The cargo subcommand that fails, or `"missing"` if cargo cannot be run at all. For pave:
+    /// `"check"`, `"git"` or `"agent"` cannot be run, `"agent-exit"` runs and exits 1.
     pub failing: Option<&'static str>,
     /// The name of the current folder, if it has one.
     pub folder: Option<&'static str>,
+    /// The environment variables that are set.
+    pub env: Vec<(&'static str, &'static str)>,
+    /// The git folder, if the current directory is in a repository.
+    pub git_dir: Option<&'static str>,
+    /// What each `amble check` run says, in order: whether it passes, and its output. Once
+    /// they run out, the check passes with no output.
+    pub checks: Mutex<VecDeque<(bool, &'static str)>>,
+    /// Whether the working tree has uncommitted changes.
+    pub dirty: Mutex<bool>,
+    /// The git commands run: `commit <subject>`, `stash <message>`.
+    pub git: Mutex<Vec<String>>,
+    /// The files each agent run writes, in order.
+    pub agent_writes: Mutex<VecDeque<Vec<(&'static str, String)>>>,
+    /// The commands and prompts the agent was run with.
+    pub prompts: Mutex<Vec<(String, String)>>,
 }
 
 impl Fake {
@@ -84,6 +101,26 @@ impl Fake {
 
     fn print(&self, message: &str) {
         self.printed.lock().unwrap().push(message.to_string());
+    }
+
+    fn eprint(&self, message: &str) {
+        self.eprinted.lock().unwrap().push(message.to_string());
+    }
+
+    pub fn git(&self) -> Vec<String> {
+        self.git.lock().unwrap().clone()
+    }
+
+    pub fn prompts(&self) -> Vec<(String, String)> {
+        self.prompts.lock().unwrap().clone()
+    }
+
+    /// Fails like a git command that could not be run, if git is the failing program.
+    fn git_runs(&self) -> io::Result<()> {
+        match self.failing {
+            Some("git") => Err(io::ErrorKind::NotFound.into()),
+            _ => Ok(()),
+        }
     }
 }
 
@@ -157,7 +194,116 @@ impl write::Utils for &Fake {
 
 impl report::Utils for &Fake {
     fn eprint(&self, message: &str) {
-        self.eprinted.lock().unwrap().push(message.to_string());
+        Fake::eprint(self, message);
+    }
+}
+
+impl plan_pave::Utils for &Fake {
+    fn exists(&self, path: &str) -> bool {
+        Fake::exists(self, path)
+    }
+    fn env(&self, name: &str) -> Option<String> {
+        self.env
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, value)| (*value).to_string())
+    }
+    fn git_dir(&self) -> Option<String> {
+        self.git_dir.map(str::to_string)
+    }
+}
+
+impl check_project::Utils for &Fake {
+    fn run_check(&self, log: &str, _target: &str) -> io::Result<bool> {
+        if self.failing == Some("check") {
+            return Err(io::ErrorKind::NotFound.into());
+        }
+        let (passed, output) = self
+            .checks
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap_or((true, ""));
+        Fake::write(self, log, output)?;
+        Ok(passed)
+    }
+    fn read(&self, path: &str) -> io::Result<String> {
+        Fake::read(self, path)
+    }
+    fn print(&self, message: &str) {
+        Fake::print(self, message);
+    }
+    fn eprint(&self, message: &str) {
+        Fake::eprint(self, message);
+    }
+}
+
+impl checkpoint::Utils for &Fake {
+    fn dirty(&self) -> io::Result<bool> {
+        self.git_runs()?;
+        Ok(*self.dirty.lock().unwrap())
+    }
+    fn commit(&self, subject: &str, _body: &str) -> io::Result<()> {
+        self.git_runs()?;
+        *self.dirty.lock().unwrap() = false;
+        self.git.lock().unwrap().push(format!("commit {subject}"));
+        Ok(())
+    }
+    fn print(&self, message: &str) {
+        Fake::print(self, message);
+    }
+}
+
+impl choose_task::Utils for &Fake {
+    fn read(&self, path: &str) -> io::Result<String> {
+        Fake::read(self, path)
+    }
+    fn print(&self, message: &str) {
+        Fake::print(self, message);
+    }
+}
+
+impl roll_back::Utils for &Fake {
+    fn stash(&self, message: &str) -> io::Result<()> {
+        self.git_runs()?;
+        *self.dirty.lock().unwrap() = false;
+        self.git.lock().unwrap().push(format!("stash {message}"));
+        Ok(())
+    }
+    fn print(&self, message: &str) {
+        Fake::print(self, message);
+    }
+}
+
+impl brief_agent::Utils for &Fake {
+    fn read(&self, path: &str) -> io::Result<String> {
+        Fake::read(self, path)
+    }
+    fn status(&self) -> io::Result<String> {
+        self.git_runs()?;
+        Ok(if *self.dirty.lock().unwrap() {
+            " M src/lib.rs\n".to_string()
+        } else {
+            String::new()
+        })
+    }
+    fn agent(&self, command: &str, prompt: &str) -> io::Result<bool> {
+        if self.failing == Some("agent") {
+            return Err(io::ErrorKind::NotFound.into());
+        }
+        self.prompts
+            .lock()
+            .unwrap()
+            .push((command.to_string(), prompt.to_string()));
+        let writes = self.agent_writes.lock().unwrap().pop_front();
+        for (path, contents) in writes.unwrap_or_default() {
+            Fake::write(self, path, &contents)?;
+            *self.dirty.lock().unwrap() = true;
+        }
+        Ok(self.failing != Some("agent-exit"))
+    }
+    fn print(&self, message: &str) {
+        Fake::print(self, message);
     }
 }
 

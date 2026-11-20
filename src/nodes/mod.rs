@@ -1,16 +1,23 @@
 //! Nodes: atomic steps, and the state traits they share.
 
+pub mod brief_agent;
+pub mod check_project;
+pub mod checkpoint;
+pub mod choose_task;
 pub mod guide;
 pub mod inspect;
 pub mod plan_node;
+pub mod plan_pave;
 pub mod plan_project;
 pub mod plan_util;
 pub mod plan_walk;
 pub mod report;
+pub mod roll_back;
 pub mod verify;
 pub mod write;
 
 use crate::scaffold::Plan;
+use crate::scaffold::pave::Paving;
 
 /// A state that has the verb's command-line arguments.
 pub trait HasArgs {
@@ -27,4 +34,10 @@ pub trait HasPlan {
 pub trait HasMessage {
     fn message(&self) -> Option<&str>;
     fn message_mut(&mut self) -> &mut Option<String>;
+}
+
+/// A state that has the `amble pave` loop: its settings, last check, task and counters.
+pub trait HasPaving {
+    fn paving(&self) -> &Paving;
+    fn paving_mut(&mut self) -> &mut Paving;
 }

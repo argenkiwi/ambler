@@ -6,6 +6,7 @@ pub mod args;
 pub mod lint;
 pub mod names;
 pub mod node;
+pub mod pave;
 pub mod project;
 pub mod register;
 pub mod source;

@@ -23,6 +23,7 @@ amble node greet --terminal --state name
 amble walk hello --nodes ask,greet --edge ask.Answered=greet --edge ask.Invalid=ask
 amble util terminal               # a module for side effects nodes share
 amble check                       # conventions, then fmt, clippy and tests
+amble pave hello --agent 'claude -p'  # or: let an agent implement specs/hello.md, one task per run
 amble help [topic]                # the conventions, one guide per topic
 ```
 
@@ -33,6 +34,7 @@ amble help [topic]                # the conventions, one guide per topic
 | `util <name>` | Writes and registers a utility module. |
 | `walk <name> --nodes … [--edge …]` | Reads the nodes and writes the walk: `State`, `Id`, the exhaustive `step`, `run()`, a wiring-test skeleton, the spec and the runner. Edges not given are left as `todo!()` arms. |
 | `check [--no-cargo]` | Reports each broken convention as `path:line: rule: message`, then runs `cargo fmt --check`, clippy with warnings denied and the tests. |
+| `pave <spec> --agent '<cmd>' …` | Implements a spec by running a coding agent in a loop, one narrow task per run (create or finish a node, wire the walk, repair the check), committing a checkpoint after every passing check. Rolls back and stops if the agent gets stuck. |
 | `help [topic]` | Prints a guide: a verb, or `conventions`, `node-design`, `testing`, `spec`, `agents`. |
 
 Nothing is ever overwritten: a verb fails if a file it would create exists.

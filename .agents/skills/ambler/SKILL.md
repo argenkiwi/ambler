@@ -21,5 +21,6 @@ Do not write or register nodes, walks or utility modules by hand, and do not wor
 | A walk, flow or program | `amble walk <name> --nodes … --edge …` | `amble help walk` |
 | A spec | written by hand; `amble walk` starts it | `amble help spec` |
 | To know the work is done | `amble check` | `amble help check` |
+| A whole spec implemented by an agent loop, one task per run | `amble pave <spec> --agent '<command>'` | `amble help pave` |
 
 `amble help` with no topic shows the layout and the usual order of work. If the command is missing, install it with `cargo install --git https://github.com/argenkiwi/amble`.
