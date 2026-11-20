@@ -84,6 +84,8 @@ pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
         },
         Change::write(at("src/lib.rs"), named(LIB)),
         Change::write(at("src/engine.rs"), ENGINE),
+        // Specs come first in the usual order of work, so their folder is there from the start.
+        Change::write(at("specs/.gitkeep"), ""),
     ];
 
     let (mut nodes, mut walks, mut utils) =
@@ -150,6 +152,7 @@ mod tests {
         assert!(contents(&changes, "my-app/src/engine.rs").contains("pub trait Walk"));
         assert!(contents(&changes, "my-app/src/lib.rs").contains("pub use engine::"));
         assert_eq!(contents(&changes, "my-app/src/nodes/mod.rs"), NODES);
+        assert_eq!(contents(&changes, "my-app/specs/.gitkeep"), "");
         assert!(contents(&changes, "my-app/AGENTS.md").contains("amble check"));
         assert_eq!(contents(&changes, "my-app/CLAUDE.md").trim(), "@AGENTS.md");
         assert!(contents(&changes, "my-app/.agents/skills/ambler/SKILL.md").starts_with("---\n"));

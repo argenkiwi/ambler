@@ -1,7 +1,7 @@
 use crate::Node;
 use crate::nodes::{HasArgs, HasMessage, HasPlan};
-use crate::scaffold::node::{NodeSpec, has_trait, node, trait_name};
-use crate::scaffold::register::{append, register};
+use crate::scaffold::node::{NodeSpec, has_trait, node, shorten, trait_name};
+use crate::scaffold::register::{add_use, append, register};
 use crate::scaffold::source::state_traits;
 use crate::scaffold::{Change, Plan, args, names};
 use crate::utils::fs;
@@ -120,11 +120,19 @@ impl<U: Utils> PlanNode<U> {
                     ));
                 }
                 (None, Some(ty)) => {
-                    let declaration = has_trait(field, ty);
-                    let declared =
-                        state_traits(&declaration).map_err(|_| format!("`{ty}` is not a type"))?;
-                    traits.extend(declared);
+                    // `crate::board::Board` is declared as `Board`, imported in mod.rs.
+                    let (short, imports) = shorten(ty);
+                    let declaration = has_trait(field, &short);
+                    state_traits(&declaration).map_err(|_| format!("`{ty}` is not a type"))?;
+                    for import in imports {
+                        modules = add_use(&modules, &import);
+                    }
                     modules = append(&modules, &declaration);
+                    let declared = state_traits(&modules)
+                        .map_err(|e| format!("{MODULES}: {e}"))?
+                        .into_iter()
+                        .find(|item| item.name == wanted);
+                    traits.extend(declared);
                 }
             }
         }
@@ -264,6 +272,44 @@ mod tests {
              fn name(&self) -> &String;\n    fn name_mut(&mut self) -> &mut String;\n}\n"
         ));
         assert_eq!(modules.matches("pub trait HasCount").count(), 1);
+    }
+
+    #[tokio::test]
+    async fn imports_a_type_given_by_its_path_where_the_trait_and_the_tests_need_it() {
+        let fake = Fake::with_files(PROJECT);
+
+        let (outcome, state) = run(
+            &fake,
+            &[
+                "place",
+                "--terminal",
+                "--state",
+                "board:crate::board::Board",
+            ],
+        )
+        .await;
+
+        assert_eq!(outcome, Outcome::Planned);
+        let [
+            Change::Write { contents: node, .. },
+            Change::Write {
+                contents: modules, ..
+            },
+        ] = state.plan.changes.as_slice()
+        else {
+            panic!("expected two files: {:?}", state.plan.changes);
+        };
+        assert!(modules.contains("pub mod stop;\n\nuse crate::board::Board;\n\n"));
+        assert!(modules.contains("    fn board(&self) -> &Board;\n"));
+        assert!(node.contains("    use super::*;\n    use crate::board::Board;\n"));
+
+        // Reusing the trait later imports the type for the tests again.
+        let fake = Fake::with_files(&[("src/nodes/mod.rs", modules.as_str())]);
+        let (_, state) = run(&fake, &["clear", "--terminal", "--state", "board"]).await;
+        let Change::Write { contents: node, .. } = &state.plan.changes[0] else {
+            panic!("expected the node file");
+        };
+        assert!(node.contains("    use crate::board::Board;\n"));
     }
 
     #[tokio::test]

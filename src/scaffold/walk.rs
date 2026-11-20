@@ -232,6 +232,16 @@ impl<'a> Wiring<'a> {
         if self.fallible.is_empty() {
             out += "use std::convert::Infallible;\n";
         }
+        // What the state's fields need; rustfmt puts them in order.
+        let imports: BTreeSet<&String> = self
+            .traits
+            .iter()
+            .filter_map(|(_, item)| *item)
+            .flat_map(|item| &item.imports)
+            .collect();
+        for import in imports {
+            out += &format!("use {import};\n");
+        }
         out
     }
 
@@ -640,6 +650,23 @@ mod tests {
             generated
                 .contains("fn counter(script: &Script) -> Counter<&Script, &Script, &Script> {")
         );
+    }
+
+    #[test]
+    fn the_state_imports_what_its_fields_need() {
+        let mut spec = counter(EDGES);
+        spec.traits = state_traits(
+            "use crate::tally::Tally;\n\npub trait HasCount {\n    fn count(&self) -> &Tally;\n    \
+             fn count_mut(&mut self) -> &mut Tally;\n}\n",
+        )
+        .unwrap();
+
+        let generated = walk(&spec);
+        let body = generated.split("#[cfg(test)]").next().unwrap();
+
+        syn::parse_file(&generated).unwrap();
+        assert!(body.contains("use crate::tally::Tally;\n"));
+        assert!(body.contains("    count: Tally,\n"));
     }
 
     #[test]

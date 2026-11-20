@@ -2,6 +2,7 @@
 
 use super::names;
 use super::source::{Field, HasTrait};
+use std::collections::BTreeSet;
 
 /// Types whose getter returns the value rather than a reference.
 const COPY: &[&str] = &[
@@ -25,6 +26,36 @@ pub struct NodeSpec {
 #[must_use]
 pub fn trait_name(field: &str) -> String {
     format!("Has{}", names::pascal(field))
+}
+
+/// `ty` with every path in it shortened to its last segment, and the paths to import:
+/// `crate::board::Board` is `Board`, imported from `crate::board::Board`.
+#[must_use]
+pub fn shorten(ty: &str) -> (String, Vec<String>) {
+    let mut short = String::new();
+    let mut imports = Vec::new();
+    let mut rest = ty;
+    while !rest.is_empty() {
+        let end = rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':'))
+            .unwrap_or(rest.len());
+        let (word, after) = rest.split_at(end);
+        if word.is_empty() {
+            let mut chars = after.chars();
+            short.extend(chars.next());
+            rest = chars.as_str();
+            continue;
+        }
+        match word.rsplit_once("::") {
+            Some((_, last)) if !last.is_empty() => {
+                short += last;
+                imports.push(word.to_string());
+            }
+            _ => short += word,
+        }
+        rest = after;
+    }
+    (short, imports)
 }
 
 /// A new state trait for `field`, with a getter and a `_mut` accessor.
@@ -189,7 +220,12 @@ fn tests(spec: &NodeSpec) -> String {
     let pascal = names::pascal(&spec.name);
     let fields = fields(&spec.traits);
 
-    let mut body = String::from("use super::*;\n\n");
+    let mut body = String::from("use super::*;\n");
+    let imports: BTreeSet<&String> = spec.traits.iter().flat_map(|item| &item.imports).collect();
+    for import in imports {
+        body += &format!("use {import};\n");
+    }
+    body += "\n";
     body += &structure("MockState", &fields);
     for item in &spec.traits {
         body += "\n";
@@ -308,5 +344,47 @@ mod tests {
         assert!(source.contains("    type Outcome = ();\n"));
         assert!(source.contains("    struct MockState;\n"));
         assert!(source.contains("let Ok(()) = Stop::with_utils(MockUtils).run(&mut state).await;"));
+    }
+
+    #[test]
+    fn a_path_in_a_type_becomes_an_import() {
+        assert_eq!(shorten("i32"), ("i32".to_string(), Vec::new()));
+        assert_eq!(
+            shorten("crate::scaffold::pave::Paving"),
+            (
+                "Paving".to_string(),
+                vec!["crate::scaffold::pave::Paving".to_string()]
+            )
+        );
+        assert_eq!(
+            shorten("std::collections::HashMap<String, ::app::Cell>"),
+            (
+                "HashMap<String, Cell>".to_string(),
+                vec![
+                    "std::collections::HashMap".to_string(),
+                    "::app::Cell".to_string()
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn the_mock_state_imports_what_its_fields_need() {
+        let traits = state_traits(
+            "use crate::board::Board;\n\npub trait HasBoard {\n    fn board(&self) -> &Board;\n    \
+             fn board_mut(&mut self) -> &mut Board;\n}\n",
+        )
+        .unwrap();
+
+        let source = node(&NodeSpec {
+            name: "place".to_string(),
+            outcomes: Vec::new(),
+            fallible: false,
+            traits,
+        });
+
+        syn::parse_file(&source).unwrap();
+        assert!(source.contains("    use super::*;\n    use crate::board::Board;\n\n"));
+        assert!(source.contains("        board: Board,\n"));
     }
 }
