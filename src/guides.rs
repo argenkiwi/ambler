@@ -4,7 +4,7 @@
 //! point here.
 
 /// The verbs of the command line, in the order `main` dispatches them.
-pub const VERBS: &[&str] = &["new", "node", "util", "walk", "check", "help"];
+pub const VERBS: &[&str] = &["new", "node", "util", "walk", "check", "pave", "help"];
 
 /// Every topic `amble help <topic>` knows: the verbs, then the conventions behind them.
 pub const TOPICS: &[&str] = &[
@@ -13,6 +13,7 @@ pub const TOPICS: &[&str] = &[
     "util",
     "walk",
     "check",
+    "pave",
     "help",
     "conventions",
     "node-design",
@@ -31,6 +32,7 @@ pub fn guide(topic: &str) -> Option<&'static str> {
         "util" => include_str!("guides/util.md"),
         "walk" => include_str!("guides/walk.md"),
         "check" => include_str!("guides/check.md"),
+        "pave" => include_str!("guides/pave.md"),
         "help" => include_str!("guides/help.md"),
         "conventions" => include_str!("guides/conventions.md"),
         "node-design" => include_str!("guides/node-design.md"),

@@ -4,11 +4,16 @@ pub mod check;
 pub mod help;
 pub mod new;
 pub mod node;
+pub mod pave;
 pub mod util;
 pub mod walk;
 
-use crate::nodes::{HasArgs, HasMessage, HasPlan, inspect, verify, write};
+use crate::nodes::{
+    HasArgs, HasMessage, HasPaving, HasPlan, brief_agent, check_project, checkpoint, choose_task,
+    inspect, roll_back, verify, write,
+};
 use crate::scaffold::Plan;
+use crate::scaffold::pave::Paving;
 
 /// Why a verb did not complete.
 #[derive(Debug, thiserror::Error)]
@@ -22,6 +27,16 @@ pub enum Error {
     Inspect(#[from] inspect::Error),
     #[error(transparent)]
     Verify(#[from] verify::Error),
+    #[error(transparent)]
+    CheckProject(#[from] check_project::Error),
+    #[error(transparent)]
+    Checkpoint(#[from] checkpoint::Error),
+    #[error(transparent)]
+    ChooseTask(#[from] choose_task::Error),
+    #[error(transparent)]
+    RollBack(#[from] roll_back::Error),
+    #[error(transparent)]
+    BriefAgent(#[from] brief_agent::Error),
 }
 
 /// The state every verb's walk shares.
@@ -29,6 +44,8 @@ pub enum Error {
 pub(crate) struct State {
     pub args: Vec<String>,
     pub plan: Plan,
+    /// The `amble pave` loop; the other verbs leave it at its default.
+    pub paving: Paving,
     pub message: Option<String>,
 }
 
@@ -66,6 +83,15 @@ impl HasPlan for State {
     }
     fn plan_mut(&mut self) -> &mut Plan {
         &mut self.plan
+    }
+}
+
+impl HasPaving for State {
+    fn paving(&self) -> &Paving {
+        &self.paving
+    }
+    fn paving_mut(&mut self) -> &mut Paving {
+        &mut self.paving
     }
 }
 

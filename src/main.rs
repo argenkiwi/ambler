@@ -14,6 +14,7 @@ async fn main() -> ExitCode {
         "util" => walks::util::run(rest).await,
         "walk" => walks::walk::run(rest).await,
         "check" => walks::check::run(rest).await,
+        "pave" => walks::pave::run(rest).await,
         "help" => walks::help::run(rest).await,
         "" => walks::help::run(Vec::new()).await,
         _ => walks::help::run(vec![verb]).await,

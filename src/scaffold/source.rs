@@ -62,6 +62,9 @@ pub struct HasTrait {
     pub name: String,
     pub fields: Vec<Field>,
     pub methods: Vec<Method>,
+    /// The paths of the `use` items in that file that the fields' types need, sorted: what a
+    /// struct holding the fields must import.
+    pub imports: Vec<String>,
 }
 
 /// The `Has*` traits declared in `src` (the contents of `src/nodes/mod.rs`).
@@ -71,19 +74,73 @@ pub struct HasTrait {
 /// Returns a message if `src` is not valid Rust.
 pub fn state_traits(src: &str) -> Result<Vec<HasTrait>, String> {
     let file = parse(src).map_err(|(line, error)| format!("line {line}: {error}"))?;
+    let imports: Vec<Import> = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Use(item) => Some(use_paths(item)),
+            _ => None,
+        })
+        .flatten()
+        .filter(|import| import.name != "*")
+        .collect();
     Ok(file
         .items
         .iter()
         .filter_map(|item| match item {
             Item::Trait(item) if item.ident.to_string().starts_with("Has") => {
-                Some(has_trait(src, item))
+                Some(has_trait(src, item, &imports))
             }
             _ => None,
         })
         .collect())
 }
 
-fn has_trait(src: &str, item: &ItemTrait) -> HasTrait {
+/// The type a state owns for a getter that returns `lent`: `&[T]` is lent by a `Vec<T>`, `&str`
+/// by a `String`, `Option<&T>` by an `Option` of the owner of `&T`, `&T` by a `T`.
+fn owner(lent: &str) -> String {
+    if let Some(inner) = lent
+        .strip_prefix("Option<")
+        .and_then(|rest| rest.strip_suffix('>'))
+        .filter(|inner| inner.starts_with('&'))
+    {
+        return format!("Option<{}>", owner(inner));
+    }
+    let Some(referent) = lent.strip_prefix('&') else {
+        return lent.to_string();
+    };
+    let referent = referent.trim_start();
+    if referent == "str" {
+        "String".to_string()
+    } else if let Some(element) = referent
+        .strip_prefix('[')
+        .and_then(|rest| rest.strip_suffix(']'))
+    {
+        format!("Vec<{}>", element.trim())
+    } else {
+        referent.to_string()
+    }
+}
+
+/// The body of a getter for `field`, of type `ty`, that returns `returned`.
+fn getter(field: &str, ty: &str, returned: &str) -> String {
+    match returned.strip_prefix("Option<&") {
+        // `Option<&T>` from `Option<T>` lends with `as_ref`; `Option<&str>` from
+        // `Option<String>` and the like dereference with `as_deref`.
+        Some(lent) if ty.strip_prefix("Option<") == Some(lent) => format!("self.{field}.as_ref()"),
+        Some(_) => format!("self.{field}.as_deref()"),
+        None if returned.starts_with('&') => format!("&self.{field}"),
+        None => format!("self.{field}"),
+    }
+}
+
+/// The identifiers in a type: `BTreeMap<String, Paving>` has `BTreeMap`, `String`, `Paving`.
+fn identifiers(ty: &str) -> impl Iterator<Item = &str> {
+    ty.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+        .filter(|word| !word.is_empty())
+}
+
+fn has_trait(src: &str, item: &ItemTrait, imports: &[Import]) -> HasTrait {
     let methods: Vec<&TraitItemFn> = item
         .items
         .iter()
@@ -123,26 +180,45 @@ fn has_trait(src: &str, item: &ItemTrait) -> HasTrait {
         }
     }
 
-    let is_field = |name: &str| fields.iter().any(|field| field.name == name);
+    let returned = |method: &TraitItemFn| match &method.sig.output {
+        ReturnType::Type(_, ty) => Some(snippet(src, &**ty)),
+        ReturnType::Default => None,
+    };
+
+    // A getter, `<field>(&self) -> T`, with no accessor that names its field: the field owns
+    // what the getter lends.
+    for method in &methods {
+        let name = method.sig.ident.to_string();
+        let only_self = method.sig.inputs.len() == 1
+            && matches!(method.sig.inputs.first(), Some(FnArg::Receiver(_)));
+        let accessor = name.ends_with("_mut") || name.starts_with("set_");
+        if only_self && !accessor && fields.iter().all(|known| known.name != name) {
+            if let Some(lent) = returned(method) {
+                fields.push(Field {
+                    ty: owner(&lent),
+                    name,
+                });
+            }
+        }
+    }
+
+    let field = |name: &str| fields.iter().find(|field| field.name == name);
     let methods = methods
         .iter()
         .map(|method| {
             let name = method.sig.ident.to_string();
             let body = match (name.strip_suffix("_mut"), name.strip_prefix("set_")) {
-                (Some(field), _) if is_field(field) => format!("&mut self.{field}"),
-                (_, Some(field)) if is_field(field) => match method.sig.inputs.iter().nth(1) {
+                (Some(name), _) if field(name).is_some() => format!("&mut self.{name}"),
+                (_, Some(name)) if field(name).is_some() => match method.sig.inputs.iter().nth(1) {
                     Some(FnArg::Typed(argument)) => {
-                        format!("self.{field} = {};", snippet(src, &argument.pat))
+                        format!("self.{name} = {};", snippet(src, &argument.pat))
                     }
                     _ => "todo!()".to_string(),
                 },
-                _ if is_field(&name) => match &method.sig.output {
-                    ReturnType::Type(_, ty) if matches!(**ty, Type::Reference(_)) => {
-                        format!("&self.{name}")
-                    }
-                    _ => format!("self.{name}"),
+                _ => match (field(&name), returned(method)) {
+                    (Some(field), Some(returned)) => getter(&name, &field.ty, &returned),
+                    _ => "todo!()".to_string(),
                 },
-                _ => "todo!()".to_string(),
             };
             Method {
                 signature: snippet(src, &method.sig),
@@ -151,10 +227,23 @@ fn has_trait(src: &str, item: &ItemTrait) -> HasTrait {
         })
         .collect();
 
+    let mut needed: Vec<String> = imports
+        .iter()
+        .filter(|import| {
+            fields
+                .iter()
+                .any(|field| identifiers(&field.ty).any(|word| word == import.name))
+        })
+        .map(|import| import.path.clone())
+        .collect();
+    needed.sort();
+    needed.dedup();
+
     HasTrait {
         name: item.ident.to_string(),
         fields,
         methods,
+        imports: needed,
     }
 }
 
@@ -449,5 +538,89 @@ mod tests {
         assert_eq!(traits[1].fields[0].ty, "String");
         let bodies: Vec<_> = traits[1].methods.iter().map(|m| m.body.as_str()).collect();
         assert_eq!(bodies, ["&self.topic", "self.topic = topic;"]);
+    }
+
+    fn bodies(item: &HasTrait) -> Vec<&str> {
+        item.methods.iter().map(|m| m.body.as_str()).collect()
+    }
+
+    #[test]
+    fn an_option_getter_lends_its_contents() {
+        let traits = state_traits(
+            "pub trait HasMessage {\n    fn message(&self) -> Option<&str>;\n    \
+             fn message_mut(&mut self) -> &mut Option<String>;\n}\n\
+             pub trait HasLimit {\n    fn limit(&self) -> Option<&u32>;\n    \
+             fn limit_mut(&mut self) -> &mut Option<u32>;\n}\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            bodies(&traits[0]),
+            ["self.message.as_deref()", "&mut self.message"]
+        );
+        assert_eq!(
+            bodies(&traits[1]),
+            ["self.limit.as_ref()", "&mut self.limit"]
+        );
+    }
+
+    #[test]
+    fn a_getter_alone_names_a_field_owning_what_it_lends() {
+        let traits = state_traits(
+            "pub trait HasArgs {\n    fn args(&self) -> &[String];\n}\n\
+             pub trait HasTitle {\n    fn title(&self) -> &str;\n}\n\
+             pub trait HasNote {\n    fn note(&self) -> Option<&str>;\n}\n\
+             pub trait HasSize {\n    fn size(&self) -> usize;\n}\n\
+             pub trait HasRows {\n    fn rows(&self) -> &Vec<u8>;\n}\n",
+        )
+        .unwrap();
+
+        let fields: Vec<(&str, &str)> = traits
+            .iter()
+            .map(|item| (item.fields[0].name.as_str(), item.fields[0].ty.as_str()))
+            .collect();
+        assert_eq!(
+            fields,
+            [
+                ("args", "Vec<String>"),
+                ("title", "String"),
+                ("note", "Option<String>"),
+                ("size", "usize"),
+                ("rows", "Vec<u8>"),
+            ]
+        );
+        let bodies: Vec<&str> = traits.iter().map(|item| bodies(item)[0]).collect();
+        assert_eq!(
+            bodies,
+            [
+                "&self.args",
+                "&self.title",
+                "self.note.as_deref()",
+                "self.size",
+                "&self.rows"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_trait_knows_the_imports_its_fields_need() {
+        let traits = state_traits(
+            "use crate::scaffold::pave::Paving;\nuse std::collections::{BTreeMap, HashSet};\n\n\
+             pub trait HasPaving {\n    fn paving(&self) -> &Paving;\n    \
+             fn paving_mut(&mut self) -> &mut Paving;\n}\n\
+             pub trait HasSeen {\n    fn seen_mut(&mut self) -> &mut BTreeMap<String, Paving>;\n}\n\
+             pub trait HasCount {\n    fn count_mut(&mut self) -> &mut i32;\n}\n",
+        )
+        .unwrap();
+
+        assert_eq!(traits[0].imports, ["crate::scaffold::pave::Paving"]);
+        assert_eq!(
+            traits[1].imports,
+            [
+                "crate::scaffold::pave::Paving",
+                "std::collections::BTreeMap"
+            ]
+        );
+        assert!(traits[2].imports.is_empty());
     }
 }

@@ -269,23 +269,9 @@ impl Linter<'_> {
         }
     }
 
-    /// The headings of a spec outside code fences: `(line, heading)`.
+    /// The headings of the spec at `path` outside code fences: `(line, heading)`.
     fn headings(&self, path: &str) -> Vec<(usize, &str)> {
-        let mut fenced = false;
-        self.files
-            .get(path)
-            .map(String::as_str)
-            .unwrap_or_default()
-            .lines()
-            .enumerate()
-            .filter(|(_, line)| {
-                if line.trim_start().starts_with("```") {
-                    fenced = !fenced;
-                }
-                !fenced && line.starts_with('#')
-            })
-            .map(|(index, line)| (index + 1, line.trim_end()))
-            .collect()
+        headings(self.files.get(path).map(String::as_str).unwrap_or_default())
     }
 
     /// A spec has a `###` section for exactly the nodes its walk wires.
@@ -378,6 +364,22 @@ impl Linter<'_> {
             }
         }
     }
+}
+
+/// The Markdown headings in `text` outside code fences: `(line, heading)`, lines from 1.
+#[must_use]
+pub fn headings(text: &str) -> Vec<(usize, &str)> {
+    let mut fenced = false;
+    text.lines()
+        .enumerate()
+        .filter(|(_, line)| {
+            if line.trim_start().starts_with("```") {
+                fenced = !fenced;
+            }
+            !fenced && line.starts_with('#')
+        })
+        .map(|(index, line)| (index + 1, line.trim_end()))
+        .collect()
 }
 
 /// Checks the conventions over `files`: paths relative to the project root, with contents.

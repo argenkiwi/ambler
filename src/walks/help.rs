@@ -98,7 +98,7 @@ mod tests {
         let state = help(&fake, &["frobnicate"]).await;
 
         assert!(fake.printed().is_empty());
-        assert!(fake.eprinted()[0].contains("topics: new, node, util, walk, check, help"));
+        assert!(fake.eprinted()[0].contains("topics: new, node, util, walk, check, pave, help"));
         assert!(state.finish().is_err());
     }
 }

@@ -7,9 +7,10 @@ Scaffolds and checks Ambler projects: programs built as walks (state machines) o
     amble util <name>                    add a module of side-effectful functions
     amble walk <name> --nodes … --edge … wire nodes into a walk, with its spec and runner
     amble check [--no-cargo]             verify the conventions, then fmt, clippy and tests
+    amble pave <spec> --agent '<cmd>'    implement a spec with an agent, one task per run
     amble help [topic]                   this guide, or one topic
 
-Topics: a verb (new, node, util, walk, check, help), or conventions, node-design, testing, spec, agents.
+Topics: a verb (new, node, util, walk, check, pave, help), or conventions, node-design, testing, spec, agents.
 
 ## The four ideas
 
