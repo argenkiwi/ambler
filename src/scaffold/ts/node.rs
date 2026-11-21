@@ -72,17 +72,9 @@ pub fn default_value(ty: &str) -> Option<String> {
 }
 
 /// `{ a: 1, b: "" }` on one line if it fits after `indent` and `prefix`, else one property a
-/// line. Optional fields are left out; fields without an obvious value get `undefined as never`.
+/// line.
 #[must_use]
-pub fn object_literal(fields: &[Field], indent: usize, prefix: &str, suffix: &str) -> String {
-    let properties: Vec<String> = fields
-        .iter()
-        .filter(|field| !field.optional)
-        .map(|field| {
-            let value = default_value(&field.ty).unwrap_or_else(|| "undefined as never".into());
-            format!("{}: {value}", field.name)
-        })
-        .collect();
+pub fn literal(properties: &[String], indent: usize, prefix: &str, suffix: &str) -> String {
     if properties.is_empty() {
         return format!("{prefix}{{}}{suffix}");
     }
@@ -96,6 +88,21 @@ pub fn object_literal(fields: &[Field], indent: usize, prefix: &str, suffix: &st
         out += &format!("{pad}{property},\n");
     }
     out + &" ".repeat(indent) + "}" + suffix
+}
+
+/// A value for each required field, as [`literal`] lays it out: the obvious one for its type,
+/// or `undefined as never` for a type without one. Optional fields are left out.
+#[must_use]
+pub fn object_literal(fields: &[Field], indent: usize, prefix: &str, suffix: &str) -> String {
+    let properties: Vec<String> = fields
+        .iter()
+        .filter(|field| !field.optional)
+        .map(|field| {
+            let value = default_value(&field.ty).unwrap_or_else(|| "undefined as never".into());
+            format!("{}: {value}", field.name)
+        })
+        .collect();
+    literal(&properties, indent, prefix, suffix)
 }
 
 /// `export type <name> = "a" | "b";`, broken one member a line if it is too long.

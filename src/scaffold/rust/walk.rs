@@ -4,16 +4,9 @@
 use super::node::{fields, implement, structure};
 use super::source::{HasTrait, NodeInfo};
 use crate::scaffold::names;
+use crate::scaffold::walk::{self as shared, Wired};
+pub use crate::scaffold::walk::{Edge, parse_edge};
 use std::collections::BTreeSet;
-
-/// `--edge <from>.<Outcome>=<to>`: where one outcome of a node leads.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Edge {
-    pub from: String,
-    pub outcome: String,
-    /// The next node, or `None` to end the walk (`=halt`).
-    pub to: Option<String>,
-}
 
 /// What `amble walk` was asked for, with what it read from the project.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,24 +20,18 @@ pub struct WalkSpec {
     pub traits: Vec<HasTrait>,
 }
 
-/// Parses `start.Success=count` or `count.Finished=halt`.
-///
-/// # Errors
-///
-/// Returns a message showing the expected shape.
-pub fn parse_edge(text: &str) -> Result<Edge, String> {
-    let bad =
-        || format!("`--edge {text}` should look like `--edge start.Success=count` (or `=halt`)");
-    let (source, to) = text.split_once('=').ok_or_else(&bad)?;
-    let (from, outcome) = source.split_once('.').ok_or_else(&bad)?;
-    if from.is_empty() || outcome.is_empty() || to.is_empty() {
-        return Err(bad());
-    }
-    Ok(Edge {
-        from: from.to_string(),
-        outcome: names::pascal(outcome),
-        to: (to != "halt").then(|| to.to_string()),
-    })
+/// The nodes as the shared checks and spec see them: their outcome variants by name.
+fn wired(spec: &WalkSpec) -> Vec<Wired> {
+    spec.nodes
+        .iter()
+        .map(|node| Wired {
+            name: node.name.clone(),
+            outcomes: node
+                .outcome
+                .as_ref()
+                .map(|outcome| outcome.variants.iter().map(|v| v.name.clone()).collect()),
+        })
+        .collect()
 }
 
 /// Checks that the nodes and edges make sense together.
@@ -53,63 +40,7 @@ pub fn parse_edge(text: &str) -> Result<Edge, String> {
 ///
 /// Returns a message naming the first problem.
 pub fn validate(spec: &WalkSpec) -> Result<(), String> {
-    let node = |name: &str| spec.nodes.iter().find(|node| node.name == name);
-    for (index, info) in spec.nodes.iter().enumerate() {
-        if spec.nodes[..index]
-            .iter()
-            .any(|other| other.name == info.name)
-        {
-            return Err(format!("node `{}` is listed twice", info.name));
-        }
-        if info.name == spec.name {
-            return Err(format!(
-                "the walk and the node `{}` cannot share a name",
-                info.name
-            ));
-        }
-    }
-    for (index, edge) in spec.edges.iter().enumerate() {
-        let from = node(&edge.from)
-            .ok_or_else(|| format!("edge from `{}`: it is not in `--nodes`", edge.from))?;
-        let Some(outcome) = &from.outcome else {
-            return Err(format!(
-                "edge from `{}`: it is a terminal node, it has no outcomes",
-                edge.from
-            ));
-        };
-        if outcome
-            .variants
-            .iter()
-            .all(|variant| variant.name != edge.outcome)
-        {
-            let known: Vec<&str> = outcome.variants.iter().map(|v| v.name.as_str()).collect();
-            return Err(format!(
-                "edge `{}.{}`: `{}` has no such outcome (it has {})",
-                edge.from,
-                edge.outcome,
-                edge.from,
-                known.join(", ")
-            ));
-        }
-        if let Some(to) = &edge.to {
-            if node(to).is_none() {
-                return Err(format!(
-                    "edge `{}.{}={to}`: `{to}` is not in `--nodes`",
-                    edge.from, edge.outcome
-                ));
-            }
-        }
-        let repeated = spec.edges[..index]
-            .iter()
-            .any(|other| other.from == edge.from && other.outcome == edge.outcome);
-        if repeated {
-            return Err(format!(
-                "edge `{}.{}` is given twice",
-                edge.from, edge.outcome
-            ));
-        }
-    }
-    Ok(())
+    shared::validate(&spec.name, &wired(spec), &spec.edges)
 }
 
 /// The generic parameter standing for the utils of the `index`th node that has any.
@@ -498,52 +429,11 @@ pub fn walk(spec: &WalkSpec) -> String {
 #[must_use]
 pub fn spec_md(spec: &WalkSpec) -> String {
     let wiring = Wiring::new(spec);
-    let mut out = String::from(
-        "# Program Specifications\n\nTODO: describe the program and its purpose.\n\n## Nodes\n",
-    );
-    for (index, node) in spec.nodes.iter().enumerate() {
-        out += &format!("\n### {}\n", names::title(&node.name));
-        if index == 0 {
-            out += "- Initial node.\n";
-        }
-        out += "- TODO: describe what this node does.\n";
-        match &node.outcome {
-            None => out += "- Terminates the walk.\n",
-            Some(outcome) => {
-                for variant in &outcome.variants {
-                    let edge = spec
-                        .edges
-                        .iter()
-                        .find(|edge| edge.from == node.name && edge.outcome == variant.name);
-                    out += &match edge {
-                        Some(Edge { to: Some(to), .. }) => format!(
-                            "- TODO: when `{}`, it transitions to `{}`.\n",
-                            variant.name,
-                            names::shout(to)
-                        ),
-                        Some(Edge { to: None, .. }) => {
-                            format!("- TODO: when `{}`, it terminates.\n", variant.name)
-                        }
-                        None => format!(
-                            "- TODO: when `{}`, it transitions to (not wired yet).\n",
-                            variant.name
-                        ),
-                    };
-                }
-            }
-        }
-    }
-    out += "\n## Shared State\n\n";
-    let fields = fields(wiring.traits.iter().filter_map(|(_, item)| *item));
-    if fields.is_empty() {
-        out += "TODO: describe the state the nodes share, if any.\n";
-    } else {
-        out += "The shared state consists of:\n";
-        for field in fields {
-            out += &format!("- `{}`: TODO: what it holds.\n", field.name);
-        }
-    }
-    out
+    let fields: Vec<String> = fields(wiring.traits.iter().filter_map(|(_, item)| *item))
+        .into_iter()
+        .map(|field| field.name.clone())
+        .collect();
+    shared::spec_md(&wired(spec), &spec.edges, &fields)
 }
 
 /// The binary that runs a walk: `src/main.rs` or `src/bin/<walk>.rs`.

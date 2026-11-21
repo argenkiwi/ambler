@@ -10,6 +10,7 @@ pub mod pave;
 pub mod rust;
 pub mod target;
 pub mod ts;
+pub mod walk;
 
 use std::collections::BTreeMap;
 use target::Target;

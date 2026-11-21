@@ -3,3 +3,4 @@
 pub mod node;
 pub mod project;
 pub mod source;
+pub mod walk;
