@@ -1,6 +1,6 @@
 use crate::Node;
 use crate::nodes::{HasArgs, HasMessage, HasPlan};
-use crate::scaffold::register::register;
+use crate::scaffold::rust::register::register;
 use crate::scaffold::{Change, Plan, args, names};
 use crate::utils::fs;
 use std::convert::Infallible;

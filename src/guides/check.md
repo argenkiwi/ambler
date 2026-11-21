@@ -1,12 +1,12 @@
 # amble check
 
-    amble check [--no-cargo]
+    amble check [--lint-only]
 
 Run it from the project root when the work is done. It checks the structural conventions and prints one line per violation:
 
     <path>:<line>: <rule>: <what to do>
 
-If there are none, it runs `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`, stopping at the first that fails. `--no-cargo` skips those. It exits 1 if anything failed.
+If there are none, it runs `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`, stopping at the first that fails. `--lint-only` skips those. It exits 1 if anything failed.
 
 ## Rules
 

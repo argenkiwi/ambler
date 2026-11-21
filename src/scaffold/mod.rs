@@ -1,25 +1,37 @@
 //! Pure text generation and analysis: source in, source out, no I/O.
 //!
-//! Nodes decide what to do; the functions here work out what the files should say.
+//! Nodes decide what to do; the functions here work out what the files should say. What does not
+//! depend on the language is here; each [`Target`](target::Target) has its own module.
 
 pub mod args;
-pub mod lint;
 pub mod names;
-pub mod node;
 pub mod pave;
-pub mod project;
-pub mod register;
-pub mod source;
-pub mod walk;
+pub mod rust;
+pub mod target;
+
+use std::collections::BTreeMap;
+use target::Target;
+
+pub use rust::lint::Violation;
+
+/// Every convention `files` (the project, by path) breaks, as `target` defines them.
+#[must_use]
+pub fn lint(target: Target, files: &BTreeMap<String, String>) -> Vec<Violation> {
+    match target {
+        Target::Rust => rust::lint::lint(files),
+        Target::TypeScript => Vec::new(),
+    }
+}
 
 /// One thing to do to the file system. Paths are relative to the current directory.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Change {
-    /// Write `contents` to `path`, creating its folders. `format` asks for rustfmt afterwards.
+    /// Write `contents` to `path`, creating its folders. `format` names the target whose
+    /// formatter runs on it afterwards.
     Write {
         path: String,
         contents: String,
-        format: bool,
+        format: Option<Target>,
     },
     /// Make `path` a symbolic link to `target`.
     Symlink { path: String, target: String },
@@ -32,18 +44,24 @@ impl Change {
         Self::Write {
             path: path.into(),
             contents: contents.into(),
-            format: false,
+            format: None,
+        }
+    }
+
+    /// A generated source file, run through `target`'s formatter once written.
+    #[must_use]
+    pub fn source(target: Target, path: impl Into<String>, contents: impl Into<String>) -> Self {
+        Self::Write {
+            path: path.into(),
+            contents: contents.into(),
+            format: Some(target),
         }
     }
 
     /// A generated Rust file, to be run through rustfmt once written.
     #[must_use]
     pub fn rust(path: impl Into<String>, contents: impl Into<String>) -> Self {
-        Self::Write {
-            path: path.into(),
-            contents: contents.into(),
-            format: true,
-        }
+        Self::source(Target::Rust, path, contents)
     }
 
     /// The path this change touches.

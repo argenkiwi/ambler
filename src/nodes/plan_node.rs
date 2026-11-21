@@ -1,8 +1,8 @@
 use crate::Node;
 use crate::nodes::{HasArgs, HasMessage, HasPlan};
-use crate::scaffold::node::{NodeSpec, has_trait, node, shorten, trait_name};
-use crate::scaffold::register::{add_use, append, register};
-use crate::scaffold::source::state_traits;
+use crate::scaffold::rust::node::{NodeSpec, has_trait, node, shorten, trait_name};
+use crate::scaffold::rust::register::{add_use, append, register};
+use crate::scaffold::rust::source::state_traits;
 use crate::scaffold::{Change, Plan, args, names};
 use crate::utils::fs;
 use std::convert::Infallible;
@@ -214,7 +214,7 @@ mod tests {
             Change::Write {
                 path,
                 contents,
-                format: true,
+                format: Some(crate::scaffold::target::Target::Rust),
             },
             modules,
         ] = state.plan.changes.as_slice()

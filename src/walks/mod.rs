@@ -9,11 +9,12 @@ pub mod util;
 pub mod walk;
 
 use crate::nodes::{
-    HasArgs, HasMessage, HasPaving, HasPlan, brief_agent, check_project, checkpoint, choose_task,
-    inspect, roll_back, verify, write,
+    HasArgs, HasMessage, HasPaving, HasPlan, HasTarget, brief_agent, check_project, checkpoint,
+    choose_task, inspect, roll_back, verify, write,
 };
 use crate::scaffold::Plan;
 use crate::scaffold::pave::Paving;
+use crate::scaffold::target::Target;
 
 /// Why a verb did not complete.
 #[derive(Debug, thiserror::Error)]
@@ -42,6 +43,8 @@ pub enum Error {
 /// The state every verb's walk shares.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {
+    /// The language of the project being made or worked on.
+    pub target: Target,
     pub args: Vec<String>,
     pub plan: Plan,
     /// The `amble pave` loop; the other verbs leave it at its default.
@@ -50,8 +53,9 @@ pub(crate) struct State {
 }
 
 impl State {
-    fn new(args: Vec<String>) -> Self {
+    fn new(target: Target, args: Vec<String>) -> Self {
         Self {
+            target,
             args,
             ..Self::default()
         }
@@ -59,7 +63,18 @@ impl State {
 
     #[cfg(test)]
     pub fn with_args(args: &[&str]) -> Self {
-        Self::new(args.iter().map(ToString::to_string).collect())
+        Self::new(
+            Target::default(),
+            args.iter().map(ToString::to_string).collect(),
+        )
+    }
+
+    #[cfg(test)]
+    pub fn with_target(target: Target, args: &[&str]) -> Self {
+        Self {
+            target,
+            ..Self::with_args(args)
+        }
     }
 
     /// A walk that left a message failed, and has reported it.
@@ -74,6 +89,12 @@ impl State {
 impl HasArgs for State {
     fn args(&self) -> &[String] {
         &self.args
+    }
+}
+
+impl HasTarget for State {
+    fn target(&self) -> Target {
+        self.target
     }
 }
 

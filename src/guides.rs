@@ -91,7 +91,7 @@ pub fn unknown_mentions(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scaffold::project::{AGENTS, SKILL};
+    use crate::scaffold::rust::project::{AGENTS, SKILL};
 
     #[test]
     fn every_topic_has_a_guide_titled_after_it() {

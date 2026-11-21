@@ -1,9 +1,10 @@
 //! What `amble pave` decides and says: the settings, the next task, the guards that bound the
 //! loop and the prompt for each task. No I/O: the nodes read the files and pass them in.
 
-use super::register::declared;
-use super::source::{node_info, state_traits};
-use super::{args, lint, names};
+use super::rust::lint;
+use super::rust::register::declared;
+use super::rust::source::{node_info, state_traits};
+use super::{args, names};
 
 pub const USAGE: &str = "usage: amble pave <spec> [--agent '<command>'] [--max-iterations <n>] \
                          [--max-repairs <n>] [--dry-run]";

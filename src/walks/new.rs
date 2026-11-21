@@ -4,6 +4,7 @@ use super::State;
 use crate::nodes::plan_project::{self, PlanProject};
 use crate::nodes::report::{self, Report};
 use crate::nodes::write::{self, Write};
+use crate::scaffold::target::Target;
 use crate::{Node, Transition, Walk};
 
 /// A rejected invocation, or a file that could not be written.
@@ -67,8 +68,8 @@ where
 ///
 /// Returns [`Error`] if the invocation is rejected (the reason is already on standard error) or
 /// a file cannot be written.
-pub async fn run(args: Vec<String>) -> Result<(), Error> {
-    let mut state = State::new(args);
+pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
+    let mut state = State::new(target, args);
     NewProject::new().run(Id::PlanProject, &mut state).await?;
     state.finish()
 }

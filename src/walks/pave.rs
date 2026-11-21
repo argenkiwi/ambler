@@ -9,6 +9,7 @@ use crate::nodes::choose_task::{self, ChooseTask};
 use crate::nodes::plan_pave::{self, PlanPave};
 use crate::nodes::report::{self, Report};
 use crate::nodes::roll_back::{self, RollBack};
+use crate::scaffold::target::Target;
 use crate::{Node, Transition, Walk};
 
 /// A rejected invocation or a loop that gave up, or a check, git or agent that could not be run.
@@ -108,8 +109,8 @@ where
 ///
 /// Returns [`Error`] if the invocation is rejected or the loop gives up (the reason is already
 /// on standard error), or if the check, git or the agent cannot be run.
-pub async fn run(args: Vec<String>) -> Result<(), Error> {
-    let mut state = State::new(args);
+pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
+    let mut state = State::new(target, args);
     Pave::new().run(Id::PlanPave, &mut state).await?;
     state.finish()
 }

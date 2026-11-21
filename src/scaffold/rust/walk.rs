@@ -1,9 +1,9 @@
 //! Generates a walk from the nodes it wires: state, ids, the exhaustive `step`, its spec and
 //! its runner.
 
-use super::names;
 use super::node::{fields, implement, structure};
 use super::source::{HasTrait, NodeInfo};
+use crate::scaffold::names;
 use std::collections::BTreeSet;
 
 /// `--edge <from>.<Outcome>=<to>`: where one outcome of a node leads.
@@ -561,16 +561,25 @@ pub fn runner(crate_name: &str, walk: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scaffold::source::{node_info, state_traits};
+    use crate::scaffold::rust::source::{node_info, state_traits};
 
     fn counter(edges: &[&str]) -> WalkSpec {
         let node = |name: &str, source: &str| node_info(name, source).unwrap();
         WalkSpec {
             name: "counter".to_string(),
             nodes: vec![
-                node("start", include_str!("../../templates/example/start.rs")),
-                node("count", include_str!("../../templates/example/count.rs")),
-                node("stop", include_str!("../../templates/example/stop.rs")),
+                node(
+                    "start",
+                    include_str!("../../../templates/rust/example/start.rs"),
+                ),
+                node(
+                    "count",
+                    include_str!("../../../templates/rust/example/count.rs"),
+                ),
+                node(
+                    "stop",
+                    include_str!("../../../templates/rust/example/stop.rs"),
+                ),
             ],
             edges: edges.iter().map(|edge| parse_edge(edge).unwrap()).collect(),
             traits: state_traits(
@@ -614,7 +623,7 @@ mod tests {
 
     #[test]
     fn reproduces_the_reference_counter_walk() {
-        let reference = include_str!("../../templates/example/counter.rs");
+        let reference = include_str!("../../../templates/rust/example/counter.rs");
         let reference = reference.split("#[cfg(test)]").next().unwrap();
 
         let generated = walk(&counter(EDGES));

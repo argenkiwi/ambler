@@ -2,9 +2,9 @@
 //!
 //! Each rule has an id, explained in `amble help check`.
 
-use super::names;
 use super::register::declared;
 use super::source::{has_impl, impls, parse, use_paths};
+use crate::scaffold::names;
 use std::collections::BTreeMap;
 use std::fmt;
 use syn::spanned::Spanned;
@@ -422,7 +422,7 @@ pub fn lint(files: &BTreeMap<String, String>) -> Vec<Violation> {
 mod tests {
     use super::*;
     use crate::scaffold::Change;
-    use crate::scaffold::project::project;
+    use crate::scaffold::rust::project::project;
 
     /// The example project, as `amble new app --example` writes it.
     fn example() -> BTreeMap<String, String> {

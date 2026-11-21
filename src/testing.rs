@@ -22,7 +22,8 @@ pub(crate) struct Fake {
     pub unwritable: Option<&'static str>,
     /// Whether reading the project fails.
     pub unreadable: bool,
-    /// The cargo subcommand that fails, or `"missing"` if cargo cannot be run at all. For pave:
+    /// An argument of the check command that fails (`clippy`, `test`, `lint`), or `"missing"` if
+    /// the checks cannot be run at all. For pave:
     /// `"check"`, `"git"` or `"agent"` cannot be run, `"agent-exit"` runs and exits 1.
     pub failing: Option<&'static str>,
     /// The name of the current folder, if it has one.
@@ -184,7 +185,7 @@ impl write::Utils for &Fake {
     fn symlink(&self, path: &str, target: &str) -> io::Result<()> {
         Fake::write(self, path, &format!("-> {target}"))
     }
-    fn format(&self, paths: &[String]) {
+    fn format(&self, _target: crate::scaffold::target::Target, paths: &[String]) {
         self.formatted.lock().unwrap().extend_from_slice(paths);
     }
     fn print(&self, message: &str) {
@@ -308,7 +309,10 @@ impl brief_agent::Utils for &Fake {
 }
 
 impl inspect::Utils for &Fake {
-    fn read_project(&self) -> io::Result<BTreeMap<String, String>> {
+    fn read_project(
+        &self,
+        _target: crate::scaffold::target::Target,
+    ) -> io::Result<BTreeMap<String, String>> {
         if self.unreadable {
             return Err(io::ErrorKind::PermissionDenied.into());
         }
@@ -320,10 +324,11 @@ impl inspect::Utils for &Fake {
 }
 
 impl verify::Utils for &Fake {
-    fn cargo(&self, args: &[&str]) -> io::Result<bool> {
+    fn run(&self, _program: &str, args: &[&str]) -> io::Result<bool> {
         match self.failing {
             Some("missing") => Err(io::ErrorKind::NotFound.into()),
-            failing => Ok(failing != args.first().copied()),
+            Some(failing) => Ok(!args.contains(&failing)),
+            None => Ok(true),
         }
     }
     fn print(&self, message: &str) {

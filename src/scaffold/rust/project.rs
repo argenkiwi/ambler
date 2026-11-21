@@ -4,31 +4,41 @@
 //! is what amble itself compiles, tests and follows.
 
 use super::register::{append, register};
-use super::{Change, node, walk};
+use super::{node, walk};
+use crate::scaffold::Change;
 
-const ENGINE: &str = include_str!("../engine.rs");
+const ENGINE: &str = include_str!("../../engine.rs");
 /// The always-loaded agent protocol. Also printed by `amble help agents`.
-pub const AGENTS: &str = include_str!("../../AGENTS.md");
-const CLAUDE: &str = include_str!("../../CLAUDE.md");
+pub const AGENTS: &str = include_str!("../../../AGENTS.md");
+const CLAUDE: &str = include_str!("../../../CLAUDE.md");
 /// The one skill that routes Ambler work to this command line.
-pub const SKILL: &str = include_str!("../../.agents/skills/ambler/SKILL.md");
+pub const SKILL: &str = include_str!("../../../.agents/skills/ambler/SKILL.md");
 
-const CARGO: &str = include_str!("../../templates/Cargo.toml");
-const GITIGNORE: &str = include_str!("../../templates/gitignore");
-const README: &str = include_str!("../../templates/README.md");
-const LIB: &str = include_str!("../../templates/lib.rs");
-const NODES: &str = include_str!("../../templates/nodes_mod.rs");
-const WALKS: &str = include_str!("../../templates/walks_mod.rs");
-const UTILS: &str = include_str!("../../templates/utils_mod.rs");
+const CARGO: &str = include_str!("../../../templates/rust/Cargo.toml");
+const GITIGNORE: &str = include_str!("../../../templates/rust/gitignore");
+const README: &str = include_str!("../../../templates/rust/README.md");
+const LIB: &str = include_str!("../../../templates/rust/lib.rs");
+const NODES: &str = include_str!("../../../templates/rust/nodes_mod.rs");
+const WALKS: &str = include_str!("../../../templates/rust/walks_mod.rs");
+const UTILS: &str = include_str!("../../../templates/rust/utils_mod.rs");
 
 const EXAMPLE_NODES: &[(&str, &str)] = &[
-    ("count", include_str!("../../templates/example/count.rs")),
-    ("start", include_str!("../../templates/example/start.rs")),
-    ("stop", include_str!("../../templates/example/stop.rs")),
+    (
+        "count",
+        include_str!("../../../templates/rust/example/count.rs"),
+    ),
+    (
+        "start",
+        include_str!("../../../templates/rust/example/start.rs"),
+    ),
+    (
+        "stop",
+        include_str!("../../../templates/rust/example/stop.rs"),
+    ),
 ];
-const EXAMPLE_UTIL: &str = include_str!("../../templates/example/terminal.rs");
-const EXAMPLE_WALK: &str = include_str!("../../templates/example/counter.rs");
-const EXAMPLE_SPEC: &str = include_str!("../../templates/example/counter.md");
+const EXAMPLE_UTIL: &str = include_str!("../../../templates/rust/example/terminal.rs");
+const EXAMPLE_WALK: &str = include_str!("../../../templates/rust/example/counter.rs");
+const EXAMPLE_SPEC: &str = include_str!("../../../templates/rust/example/counter.md");
 
 /// Whether `name` can be a Cargo package name and, with `-` as `_`, a crate name.
 #[must_use]

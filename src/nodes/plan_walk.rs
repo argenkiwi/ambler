@@ -1,9 +1,9 @@
 use crate::Node;
 use crate::nodes::{HasArgs, HasMessage, HasPlan};
-use crate::scaffold::project::crate_name;
-use crate::scaffold::register::register;
-use crate::scaffold::source::{node_info, state_traits};
-use crate::scaffold::walk::{WalkSpec, parse_edge, runner, spec_md, validate, walk};
+use crate::scaffold::rust::project::crate_name;
+use crate::scaffold::rust::register::register;
+use crate::scaffold::rust::source::{node_info, state_traits};
+use crate::scaffold::rust::walk::{WalkSpec, parse_edge, runner, spec_md, validate, walk};
 use crate::scaffold::{Change, Plan, args, names};
 use crate::utils::fs;
 use std::convert::Infallible;
@@ -202,15 +202,15 @@ mod tests {
         ),
         (
             "src/nodes/start.rs",
-            include_str!("../../templates/example/start.rs"),
+            include_str!("../../templates/rust/example/start.rs"),
         ),
         (
             "src/nodes/count.rs",
-            include_str!("../../templates/example/count.rs"),
+            include_str!("../../templates/rust/example/count.rs"),
         ),
         (
             "src/nodes/stop.rs",
-            include_str!("../../templates/example/stop.rs"),
+            include_str!("../../templates/rust/example/stop.rs"),
         ),
     ];
     const ARGS: &[&str] = &[

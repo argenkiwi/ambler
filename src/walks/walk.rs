@@ -4,6 +4,7 @@ use super::State;
 use crate::nodes::plan_walk::{self, PlanWalk};
 use crate::nodes::report::{self, Report};
 use crate::nodes::write::{self, Write};
+use crate::scaffold::target::Target;
 use crate::{Node, Transition, Walk as _};
 
 /// A rejected invocation, or a file that could not be written.
@@ -67,8 +68,8 @@ where
 ///
 /// Returns [`Error`] if the invocation is rejected (the reason is already on standard error) or
 /// a file cannot be written.
-pub async fn run(args: Vec<String>) -> Result<(), Error> {
-    let mut state = State::new(args);
+pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
+    let mut state = State::new(target, args);
     Walk::new().run(Id::PlanWalk, &mut state).await?;
     state.finish()
 }
@@ -84,7 +85,7 @@ mod tests {
         ("src/nodes/mod.rs", "pub mod stop;\n"),
         (
             "src/nodes/stop.rs",
-            include_str!("../../templates/example/stop.rs"),
+            include_str!("../../templates/rust/example/stop.rs"),
         ),
     ];
 

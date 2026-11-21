@@ -5,11 +5,14 @@ use super::State;
 use crate::nodes::inspect::{self, Inspect};
 use crate::nodes::report::{self, Report};
 use crate::nodes::verify::{self, Verify};
+use crate::scaffold::target::Target;
 use crate::{Node, Transition, Walk};
 
-const USAGE: &str = "usage: amble check [--no-cargo]";
+const USAGE: &str = "usage: amble check [--lint-only]";
+/// What `--lint-only` was called before there was more than one target.
+const OLD_SWITCH: &str = "--no-cargo";
 
-/// A failed check, or a project or cargo that could not be reached.
+/// A failed check, or a project or check command that could not be reached.
 pub type Error = super::Error;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,15 +27,16 @@ struct Check<A = inspect::SystemUtils, B = verify::SystemUtils, C = report::Syst
     inspect: Inspect<A>,
     verify: Verify<B>,
     report: Report<C>,
-    /// Whether a clean inspection goes on to cargo. `--no-cargo` ends the walk there instead.
-    cargo: bool,
+    /// Whether a clean inspection goes on to the target's checks. `--lint-only` ends the walk
+    /// there instead.
+    checks: bool,
 }
 
 impl Check {
     /// Production wiring: every node uses its `SystemUtils`.
-    fn new(cargo: bool) -> Self {
+    fn new(checks: bool) -> Self {
         Self {
-            cargo,
+            checks,
             ..Self::default()
         }
     }
@@ -51,7 +55,7 @@ where
     async fn step(&self, id: Id, state: &mut State) -> Result<Transition<Id>, Error> {
         Ok(match id {
             Id::Inspect => match self.inspect.run(state).await? {
-                inspect::Outcome::Clean if self.cargo => Transition::Next(Id::Verify),
+                inspect::Outcome::Clean if self.checks => Transition::Next(Id::Verify),
                 inspect::Outcome::Clean => Transition::Halt,
                 inspect::Outcome::Violations => Transition::Next(Id::Report),
             },
@@ -67,23 +71,24 @@ where
     }
 }
 
-/// Runs `amble check [--no-cargo]`.
+/// Runs `amble check [--lint-only]`.
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if a convention is broken or cargo fails (the reason is already printed),
-/// or if the project or cargo cannot be reached.
-pub async fn run(args: Vec<String>) -> Result<(), Error> {
-    let cargo = !args.iter().any(|arg| arg == "--no-cargo");
-    let known = args.iter().all(|arg| arg == "--no-cargo");
-    let mut state = State::new(args);
+/// Returns [`Error`] if a convention is broken or a check fails (the reason is already printed),
+/// or if the project or a check command cannot be reached.
+pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
+    let lint_only = |arg: &String| arg == "--lint-only" || arg == OLD_SWITCH;
+    let checks = !args.iter().any(lint_only);
+    let known = args.iter().all(lint_only);
+    let mut state = State::new(target, args);
     let start = if known {
         Id::Inspect
     } else {
         state.message = Some(USAGE.to_string());
         Id::Report
     };
-    Check::new(cargo).run(start, &mut state).await?;
+    Check::new(checks).run(start, &mut state).await?;
     state.finish()
 }
 
@@ -99,12 +104,12 @@ mod tests {
         ("src/utils/mod.rs", ""),
     ];
 
-    async fn check(fake: &Fake, cargo: bool) -> State {
+    async fn check(fake: &Fake, checks: bool) -> State {
         let walk = Check {
             inspect: Inspect::with_utils(fake),
             verify: Verify::with_utils(fake),
             report: Report::with_utils(fake),
-            cargo,
+            checks,
         };
         let mut state = State::default();
         walk.run(Id::Inspect, &mut state).await.unwrap();

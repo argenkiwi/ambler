@@ -33,7 +33,7 @@ amble help [topic]                # the conventions, one guide per topic
 | `node <name> …` | Writes a node's contract (`Outcome`, `Error`, `Utils`, state bounds), a `todo!()` body and one failing test per branch; registers it; declares new `Has*` state traits. |
 | `util <name>` | Writes and registers a utility module. |
 | `walk <name> --nodes … [--edge …]` | Reads the nodes and writes the walk: `State`, `Id`, the exhaustive `step`, `run()`, a wiring-test skeleton, the spec and the runner. Edges not given are left as `todo!()` arms. |
-| `check [--no-cargo]` | Reports each broken convention as `path:line: rule: message`, then runs `cargo fmt --check`, clippy with warnings denied and the tests. |
+| `check [--lint-only]` | Reports each broken convention as `path:line: rule: message`, then runs `cargo fmt --check`, clippy with warnings denied and the tests. |
 | `pave <spec> --agent '<cmd>' …` | Implements a spec by running a coding agent in a loop, one narrow task per run (create or finish a node, wire the walk, repair the check), committing a checkpoint after every passing check. Rolls back and stops if the agent gets stuck. |
 | `help [topic]` | Prints a guide: a verb, or `conventions`, `node-design`, `testing`, `spec`, `agents`. |
 
