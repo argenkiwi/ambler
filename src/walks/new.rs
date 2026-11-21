@@ -150,7 +150,10 @@ mod tests {
         let state = new(&fake, &["a", "b"]).await;
 
         assert!(state.finish().is_err());
-        assert_eq!(fake.eprinted(), ["usage: amble new [<name>] [--example]"]);
+        assert_eq!(
+            fake.eprinted(),
+            ["usage: amble new [<name>] [--example] [--target rust|ts]"]
+        );
         assert!(fake.paths().is_empty());
         assert!(fake.printed().is_empty());
     }
