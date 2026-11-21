@@ -4,36 +4,14 @@
 
 use super::register::declared;
 use super::source::{has_impl, impls, parse, use_paths};
+use crate::scaffold::lint::{Violation, spec_nodes, spec_sections};
 use crate::scaffold::names;
 use std::collections::BTreeMap;
-use std::fmt;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 use syn::{ImplItem, Item, Visibility};
 
-/// One broken convention, and where.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Violation {
-    pub path: String,
-    pub line: usize,
-    pub rule: &'static str,
-    pub message: String,
-}
-
-impl fmt::Display for Violation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self {
-            path,
-            line,
-            rule,
-            message,
-        } = self;
-        write!(f, "{path}:{line}: {rule}: {message}")
-    }
-}
-
 const GROUPS: [&str; 3] = ["nodes", "walks", "utils"];
-const SECTIONS: [&str; 3] = ["# Program Specifications", "## Nodes", "## Shared State"];
 
 struct Linter<'a> {
     files: &'a BTreeMap<String, String>,
@@ -265,71 +243,9 @@ impl Linter<'_> {
         if !self.files.contains_key(&spec) {
             self.report(path, 1, "walk-spec", format!("expected its spec in {spec}"));
         } else if let Some(ids) = ids {
-            self.spec_nodes(&spec, path, &ids);
-        }
-    }
-
-    /// The headings of the spec at `path` outside code fences: `(line, heading)`.
-    fn headings(&self, path: &str) -> Vec<(usize, &str)> {
-        headings(self.files.get(path).map(String::as_str).unwrap_or_default())
-    }
-
-    /// A spec has a `###` section for exactly the nodes its walk wires.
-    fn spec_nodes(&mut self, spec: &str, walk: &str, ids: &[String]) {
-        let sections: Vec<(usize, String)> = self
-            .headings(spec)
-            .into_iter()
-            .filter_map(|(line, heading)| {
-                Some((line, heading.strip_prefix("### ")?.replace(' ', "")))
-            })
-            .collect();
-        for (line, section) in &sections {
-            if !ids.contains(section) {
-                self.report(
-                    spec,
-                    *line,
-                    "spec-nodes",
-                    format!("this node is not wired in {walk} (no `Id::{section}`)"),
-                );
-            }
-        }
-        for id in ids {
-            if sections.iter().all(|(_, section)| section != id) {
-                self.report(
-                    spec,
-                    1,
-                    "spec-nodes",
-                    format!("`Id::{id}` in {walk} has no `###` section here"),
-                );
-            }
-        }
-    }
-
-    /// A spec has the three sections, and no others.
-    fn spec_sections(&mut self, path: &str) {
-        let headings: Vec<(usize, String)> = self
-            .headings(path)
-            .into_iter()
-            .filter(|(_, heading)| !heading.starts_with("###"))
-            .map(|(line, heading)| (line, heading.to_string()))
-            .collect();
-        for (line, heading) in &headings {
-            if !SECTIONS.contains(&heading.as_str()) {
-                self.report(
-                    path,
-                    *line,
-                    "spec-sections",
-                    format!(
-                        "a spec has only {}",
-                        SECTIONS.map(|s| format!("`{s}`")).join(", ")
-                    ),
-                );
-            }
-        }
-        for section in SECTIONS {
-            if headings.iter().all(|(_, heading)| heading != section) {
-                self.report(path, 1, "spec-sections", format!("missing `{section}`"));
-            }
+            let show: fn(&str) -> String = |id| format!("Id::{id}");
+            self.found
+                .extend(spec_nodes(self.files, &spec, path, &ids, show));
         }
     }
 
@@ -366,22 +282,6 @@ impl Linter<'_> {
     }
 }
 
-/// The Markdown headings in `text` outside code fences: `(line, heading)`, lines from 1.
-#[must_use]
-pub fn headings(text: &str) -> Vec<(usize, &str)> {
-    let mut fenced = false;
-    text.lines()
-        .enumerate()
-        .filter(|(_, line)| {
-            if line.trim_start().starts_with("```") {
-                fenced = !fenced;
-            }
-            !fenced && line.starts_with('#')
-        })
-        .map(|(index, line)| (index + 1, line.trim_end()))
-        .collect()
-}
-
 /// Checks the conventions over `files`: paths relative to the project root, with contents.
 ///
 /// Expects `Cargo.toml`, every `.rs` file under `src/` and every `.md` file under `specs/`.
@@ -411,7 +311,7 @@ pub fn lint(files: &BTreeMap<String, String>) -> Vec<Violation> {
         } else if member(path, "utils").is_some() {
             linter.util(path, source);
         } else if path.starts_with("specs/") && path.ends_with(".md") {
-            linter.spec_sections(path);
+            linter.found.extend(spec_sections(files, path));
         }
     }
     linter.found.sort();

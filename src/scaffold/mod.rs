@@ -5,6 +5,7 @@
 
 pub mod args;
 pub mod context;
+pub mod lint;
 pub mod names;
 pub mod pave;
 pub mod rust;
@@ -12,19 +13,9 @@ pub mod target;
 pub mod ts;
 pub mod walk;
 
-use std::collections::BTreeMap;
 use target::Target;
 
-pub use rust::lint::Violation;
-
-/// Every convention `files` (the project, by path) breaks, as `target` defines them.
-#[must_use]
-pub fn lint(target: Target, files: &BTreeMap<String, String>) -> Vec<Violation> {
-    match target {
-        Target::Rust => rust::lint::lint(files),
-        Target::TypeScript => Vec::new(),
-    }
-}
+pub use lint::{Violation, lint};
 
 /// One thing to do to the file system. Paths are relative to the current directory.
 #[derive(Clone, Debug, PartialEq, Eq)]
