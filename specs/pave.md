@@ -6,9 +6,9 @@
 
 ### Plan Pave
 - Initial node.
-- Reads the spec name, the agent command (from `--agent`, or else the `AMBLE_AGENT` environment variable), the limits and whether this is a dry run from the arguments, and where to keep the check log and build output.
+- Reads the spec name, the agent command (from `--agent`, or else the `AMBLE_AGENT` environment variable), the limits and whether this is a dry run from the arguments, and where to keep the check log and, for a Rust project, the build output.
 - If everything fits, it transitions to `CHECK_PROJECT`.
-- If the arguments are invalid, no agent command is given outside a dry run, the spec does not exist, this is not an Ambler project or not a git repository, it records why and transitions to `REPORT`.
+- If the arguments are invalid, no agent command is given outside a dry run, the spec does not exist, this is not an Ambler project of the target or not a git repository, it records why and transitions to `REPORT`.
 
 ### Check Project
 - Runs `amble check`, keeping its output in the log, and records whether it passed and the end of its output.
@@ -33,7 +33,7 @@
 - Transitions to `CHECK_PROJECT`. If git fails the program fails with that error.
 
 ### Brief Agent
-- Writes a prompt holding only what the task needs: the node's section of the spec and the shared state, the whole spec and each node's outcomes for the walk, or the check output and the uncommitted changes for a repair.
+- Writes a prompt holding only what the task needs, in the target's files, tools and terms: the node's section of the spec and the shared state, the whole spec and each node's outcomes (or edges) for the walk, or the check output and the uncommitted changes for a repair.
 - In a dry run it prints the prompt and terminates.
 - Otherwise it runs the agent with the prompt, counts a repair if the check was failing, and transitions to `CHECK_PROJECT`. An agent that exits with an error is noted and the check decides.
 - If a file cannot be read or the agent cannot be started the program fails with that error.
@@ -44,6 +44,7 @@
 ## Shared State
 
 The shared state consists of:
+- `target`: the language of the project.
 - `args`: the arguments after the verb.
 - `paving`: the settings, the last check result, the current task and the counters that bound the loop.
 - `message`: why the verb failed, if it did.

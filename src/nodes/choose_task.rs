@@ -76,6 +76,7 @@ where
         let settings = &paving.settings;
         let spec = self.utils.read(&settings.spec_path())?;
         let task = select_task(
+            settings.target,
             &spec_nodes(&spec),
             &settings.walk_path(),
             paving.passed,

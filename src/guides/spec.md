@@ -1,6 +1,6 @@
 # amble spec
 
-Every walk has a plain-language spec at `specs/<walk>.md`, named after `src/walks/<walk>.rs`. Write it before the code when planning; `amble walk` writes a starting point if there is none, and keeps one that exists.
+Every walk has a plain-language spec at `specs/<walk>.md`, named after the walk in snake_case (`src/walks/<walk>.rs` in Rust, `walks/<walk>.ts` in TypeScript). Write it before the code when planning; `amble walk` writes a starting point if there is none, and keeps one that exists.
 
 ## Format
 
@@ -26,11 +26,11 @@ Every walk has a plain-language spec at `specs/<walk>.md`, named after `src/walk
 ## Rules
 
 - Exactly these three sections, and one `###` per node.
-- Node headings are Title Case and match the walk's `Id` variants: `### Check Config` is `Id::CheckConfig`, the node `check_config`.
+- Node headings are Title Case and match the walk's node ids: `### Check Config` is the node `check_config`, `Id::CheckConfig` in Rust and `"CHECK_CONFIG"` in TypeScript.
 - Edges refer to nodes in backticked capitals: `` `CHECK_CONFIG` ``.
-- Each edge is an `Outcome` variant of the node the section describes. Several conditions may share one outcome if the walk routes them alike.
-- Plain language only: no Rust types, no crate names.
+- Each edge is an outcome of the node the section describes: an `Outcome` variant in Rust, an `on…` edge in TypeScript. Several conditions may share one outcome if the walk routes them alike.
+- Plain language only: no types, no crate or package names.
 - Derive the shared state from what the nodes need. Do not design it first.
 - When a walk already exists, the spec follows the code; change both together.
 
-`amble check` verifies the sections and that the node headings match the `Id` variants. Whether the prose is true is yours to check.
+`amble check` verifies the sections and that the node headings match the walk's node ids. Whether the prose is true is yours to check.

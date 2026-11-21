@@ -183,4 +183,147 @@ mod tests {
 
         std::fs::remove_dir_all(&folder).unwrap();
     }
+
+    /// End to end against the real file system and Bun: a TypeScript example project passes
+    /// `amble check` without `--target`, and a node and walk added with amble pass it once
+    /// written.
+    #[tokio::test]
+    #[ignore = "slow: installs and checks a generated project with bun"]
+    async fn a_generated_typescript_project_passes_its_own_checks() {
+        use std::path::Path;
+        use std::process::Command;
+
+        let folder = std::env::temp_dir().join(format!("amble-e2e-ts-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
+        let amble = |args: &[&str], within: &Path| {
+            Command::new("cargo")
+                .args(["run", "--quiet", "--manifest-path", manifest, "--"])
+                .args(args)
+                .current_dir(within)
+                .env_remove(crate::scaffold::target::VAR)
+                .status()
+                .unwrap()
+                .success()
+        };
+        let demo = folder.join("demo");
+        let write = |path: &str, contents: &str| std::fs::write(demo.join(path), contents).unwrap();
+
+        assert!(amble(
+            &["new", "demo", "--example", "--target", "ts"],
+            &folder
+        ));
+        let installed = Command::new("bun")
+            .arg("install")
+            .current_dir(&demo)
+            .status()
+            .unwrap();
+        assert!(installed.success());
+        assert!(amble(&["check"], &demo), "the example fails its checks");
+
+        assert!(amble(
+            &[
+                "node",
+                "greet",
+                "--outcomes",
+                "done",
+                "--state",
+                "name:string"
+            ],
+            &demo
+        ));
+        assert!(amble(
+            &["node", "bye", "--terminal", "--state", "name"],
+            &demo
+        ));
+        assert!(amble(
+            &[
+                "walk",
+                "hello",
+                "--nodes",
+                "greet,bye",
+                "--edge",
+                "greet.done=bye"
+            ],
+            &demo
+        ));
+        assert!(
+            !amble(&["check", "--lint-only"], &demo),
+            "unfinished code passes"
+        );
+
+        write(
+            "nodes/greet.ts",
+            "import type { NodeFactory } from \"../ambler.ts\";\n\n\
+             export interface State {\n  name: string;\n}\n\n\
+             export type Edge = \"onDone\";\n\n\
+             export type Utils = Record<string, never>;\n\n\
+             const defaultUtils: Utils = {};\n\n\
+             /** Names whoever is greeted. */\n\
+             export const factory: NodeFactory<State, Edge, Utils> =\n  \
+               (edges, _utils = defaultUtils) =>\n  \
+               (state) => [edges.onDone, { ...state, name: \"world\" }];\n",
+        );
+        write(
+            "nodes/tests/greet.test.ts",
+            "import { expect, test } from \"bun:test\";\n\
+             import { factory } from \"../greet.ts\";\n\n\
+             test(\"greet takes onDone with a name\", async () => {\n  \
+               const [next, after] = await factory({ onDone: \"DONE\" }, {})({ name: \"\" });\n\n  \
+               expect(next).toEqual(\"DONE\");\n  \
+               expect(after.name).toEqual(\"world\");\n\
+             });\n",
+        );
+        write(
+            "nodes/bye.ts",
+            "import type { NodeFactory } from \"../ambler.ts\";\n\n\
+             export interface State {\n  name: string;\n}\n\n\
+             export type Edge = \"onDone\";\n\n\
+             export type Utils = { print: (message: string) => void };\n\n\
+             const defaultUtils: Utils = { print: (message) => console.log(message) };\n\n\
+             /** Says goodbye. */\n\
+             export const factory: NodeFactory<State, Edge, Utils> =\n  \
+               (edges, utils = defaultUtils) =>\n  \
+               (state) => {\n    \
+                 utils.print(`Bye, ${state.name}`);\n    \
+                 return [edges.onDone, state];\n  \
+               };\n",
+        );
+        write(
+            "nodes/tests/bye.test.ts",
+            "import { expect, test } from \"bun:test\";\n\
+             import { factory } from \"../bye.ts\";\n\n\
+             test(\"bye takes onDone and says goodbye\", async () => {\n  \
+               const printed: string[] = [];\n  \
+               const print = (message: string) => {\n    printed.push(message);\n  };\n\n  \
+               const [next] = await factory({ onDone: null }, { print })({ name: \"Ann\" });\n\n  \
+               expect(next).toBeNull();\n  \
+               expect(printed).toEqual([\"Bye, Ann\"]);\n\
+             });\n",
+        );
+        write(
+            "walks/tests/hello.test.ts",
+            "import { expect, test } from \"bun:test\";\n\
+             import { walk } from \"../../ambler.ts\";\n\
+             import { createWalk } from \"../hello.ts\";\n\n\
+             test(\"hello greets the world and says goodbye\", async () => {\n  \
+               const printed: string[] = [];\n  \
+               const print = (message: string) => {\n    printed.push(message);\n  };\n\n  \
+               const final = await walk(createWalk({ bye: { print } }), \"GREET\", {\n    \
+                 name: \"\",\n  \
+               });\n\n  \
+               expect(final.name).toEqual(\"world\");\n  \
+               expect(printed).toEqual([\"Bye, world\"]);\n\
+             });\n",
+        );
+        let biome = Command::new("node_modules/.bin/biome")
+            .args(["check", "--write", "nodes", "walks"])
+            .current_dir(&demo)
+            .status()
+            .unwrap();
+        assert!(biome.success());
+        assert!(amble(&["check"], &demo), "the finished node and walk fail");
+
+        std::fs::remove_dir_all(&folder).unwrap();
+    }
 }

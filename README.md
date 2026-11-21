@@ -1,6 +1,6 @@
 # amble
 
-A command line for coding agents (and people) that scaffolds and checks [Ambler](https://github.com/argenkiwi/ambler-rs) projects: programs built as walks (state machines) of small, tested nodes.
+A command line for coding agents (and people) that scaffolds and checks [Ambler](https://github.com/argenkiwi/ambler-rs) projects: programs built as walks (state machines) of small, tested nodes. Projects are Rust ([ambler-rs](https://github.com/argenkiwi/ambler-rs)) by default, or TypeScript on Bun ([ambler-ts](https://github.com/argenkiwi/ambler-ts)) with `--target ts`.
 
 Ambler is a template, not a library, so every project carries its own copy of the engine and has to follow the same conventions by hand. `amble` does the mechanical part (files in the right place, registration, wiring boilerplate, convention checks) and leaves the design to whoever is building: which outcomes a node has, what its tests prove, where each outcome leads.
 
@@ -38,6 +38,12 @@ amble help [topic]                # the conventions, one guide per topic
 | `help [topic]` | Prints a guide: a verb, or `conventions`, `node-design`, `testing`, `spec`, `agents`. |
 
 Nothing is ever overwritten: a verb fails if a file it would create exists.
+
+## Targets
+
+`amble new my-app --target ts` (or `AMBLE_TARGET=ts amble new my-app`) creates a TypeScript project: `ambler.ts`, `package.json` with Biome and `tsc`, and `nodes/`, `walks/` and `utils/` with tests beside them in `tests/` folders. Run `bun install` in it once.
+
+Inside a project the flag is not needed: every verb works out the target from `--target`, then `AMBLE_TARGET`, then the project's files (`ambler.ts` and `package.json` for TypeScript, `Cargo.toml` and `src/engine.rs` for Rust), and falls back to Rust. The verbs and flags are the same; `amble help` describes the conventions of the project's target, and `amble check` runs `tsc`, Biome and `bun test` instead of cargo.
 
 ## Agents
 

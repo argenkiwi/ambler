@@ -10,7 +10,7 @@ Run it from the root of an Ambler project in a git repository, once the spec is 
 - `--max-iterations`: how many agent runs at most.
 - `--max-repairs`: how many failed checks in a row before rolling back.
 - `--dry-run`: run the check, print the next task's prompt and stop. Nothing is committed and no agent runs.
-- `AMBLE_PAVE_TARGET`: the `CARGO_TARGET_DIR` for pave's own checks (default `target/amble-pave`), so they don't overwrite another toolchain's `target/`, a container's for example.
+- `AMBLE_PAVE_TARGET`: in a Rust project, the `CARGO_TARGET_DIR` for pave's own checks (default `target/amble-pave`), so they don't overwrite another toolchain's `target/`, a container's for example.
 
 ## Each iteration
 
@@ -20,9 +20,9 @@ Run it from the root of an Ambler project in a git repository, once the spec is 
    - a missing node, while the check passes: create it;
    - every node done and no walk yet: wire the walk, with `--nodes` filled in and each node's outcomes listed;
    - the check failing for any other reason: repair it.
-3. Run the agent with a prompt that holds only what the task needs. A node's prompt has its own section of the spec, the shared state and the existing state traits.
+3. Run the agent with a prompt that holds only what the task needs. A node's prompt has its own section of the spec, the shared state and the state the project's nodes already have.
 
-pave stops with exit 0 once `src/walks/<spec>.rs` exists and the check passes.
+pave stops with exit 0 once the walk (`src/walks/<spec>.rs`, or `walks/<spec>.ts`) exists and the check passes.
 
 ## Safeguards
 
@@ -34,4 +34,4 @@ pave stops with exit 0 once `src/walks/<spec>.rs` exists and the check passes.
 
 ## In a container
 
-When the agent runs in a container, run pave there too, so the agent and the checks share a toolchain. Install the `amble` command in the image, set `AMBLE_PAVE_TARGET=/workspace/target` (or wherever the agent builds) and make sure git has an identity to commit with.
+When the agent runs in a container, run pave there too, so the agent and the checks share a toolchain. Install the `amble` command in the image, set `AMBLE_PAVE_TARGET=/workspace/target` for a Rust project (or wherever the agent builds) and make sure git has an identity to commit with.

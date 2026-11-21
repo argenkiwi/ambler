@@ -1,7 +1,10 @@
 //! The guides `amble help` prints, compiled into the binary.
 //!
 //! They are the single place the conventions are written down: `AGENTS.md` and the skill only
-//! point here.
+//! point here. Topics whose conventions depend on the language have a guide per target; the
+//! others are shared.
+
+use crate::scaffold::target::Target;
 
 /// The verbs of the command line, in the order `main` dispatches them.
 pub const VERBS: &[&str] = &["new", "node", "util", "walk", "check", "pave", "help"];
@@ -22,9 +25,35 @@ pub const TOPICS: &[&str] = &[
     "agents",
 ];
 
-/// The guide for `topic`, or the general guide for `""`.
+/// The guide for `topic` in a `target` project, or the general guide for `""`.
 #[must_use]
-pub fn guide(topic: &str) -> Option<&'static str> {
+pub fn guide(topic: &str, target: Target) -> Option<&'static str> {
+    if target == Target::TypeScript {
+        if let Some(guide) = typescript(topic) {
+            return Some(guide);
+        }
+    }
+    shared(topic)
+}
+
+/// The guides written for TypeScript projects.
+fn typescript(topic: &str) -> Option<&'static str> {
+    Some(match topic {
+        "" => include_str!("guides/ts/general.md"),
+        "new" => include_str!("guides/ts/new.md"),
+        "node" => include_str!("guides/ts/node.md"),
+        "util" => include_str!("guides/ts/util.md"),
+        "walk" => include_str!("guides/ts/walk.md"),
+        "check" => include_str!("guides/ts/check.md"),
+        "conventions" => include_str!("guides/ts/conventions.md"),
+        "node-design" => include_str!("guides/ts/node-design.md"),
+        "testing" => include_str!("guides/ts/testing.md"),
+        _ => return None,
+    })
+}
+
+/// The guides for Rust projects, and those every target shares.
+fn shared(topic: &str) -> Option<&'static str> {
     Some(match topic {
         "" => include_str!("guides/general.md"),
         "new" => include_str!("guides/new.md"),
@@ -93,12 +122,19 @@ mod tests {
     use super::*;
     use crate::scaffold::context::{AGENTS, SKILL};
 
+    const TARGETS: [Target; 2] = [Target::Rust, Target::TypeScript];
+
     #[test]
-    fn every_topic_has_a_guide_titled_after_it() {
-        assert!(guide("").unwrap().starts_with("# amble\n"));
-        for topic in TOPICS {
-            let guide = guide(topic).unwrap_or_else(|| panic!("no guide for {topic}"));
-            assert!(guide.starts_with(&format!("# amble {topic}\n")), "{topic}");
+    fn every_topic_has_a_guide_titled_after_it_in_every_target() {
+        for target in TARGETS {
+            assert!(guide("", target).unwrap().starts_with("# amble\n"));
+            for topic in TOPICS {
+                let guide = guide(topic, target).unwrap_or_else(|| panic!("no guide for {topic}"));
+                assert!(
+                    guide.starts_with(&format!("# amble {topic}\n")),
+                    "{topic} ({target:?})"
+                );
+            }
         }
         for verb in VERBS {
             assert!(TOPICS.contains(verb), "{verb}");
@@ -106,8 +142,27 @@ mod tests {
     }
 
     #[test]
+    fn a_typescript_project_reads_its_own_guide_where_there_is_one() {
+        assert!(
+            guide("node", Target::TypeScript)
+                .unwrap()
+                .contains("nodes/<name>.ts")
+        );
+        assert!(
+            guide("node", Target::Rust)
+                .unwrap()
+                .contains("src/nodes/<name>.rs")
+        );
+        assert_eq!(
+            guide("spec", Target::TypeScript),
+            guide("spec", Target::Rust)
+        );
+    }
+
+    #[test]
     fn there_is_no_guide_for_an_unknown_topic() {
-        assert_eq!(guide("frobnicate"), None);
+        assert_eq!(guide("frobnicate", Target::Rust), None);
+        assert_eq!(guide("frobnicate", Target::TypeScript), None);
     }
 
     #[test]
@@ -126,22 +181,24 @@ mod tests {
     fn the_context_files_and_guides_only_mention_what_exists() {
         assert_eq!(unknown_mentions(AGENTS), Vec::<String>::new(), "AGENTS.md");
         assert_eq!(unknown_mentions(SKILL), Vec::<String>::new(), "SKILL.md");
-        assert_eq!(
-            unknown_mentions(guide("").unwrap()),
-            Vec::<String>::new(),
-            "general"
-        );
-        for topic in TOPICS {
+        for target in TARGETS {
             assert_eq!(
-                unknown_mentions(guide(topic).unwrap()),
+                unknown_mentions(guide("", target).unwrap()),
                 Vec::<String>::new(),
-                "{topic}"
+                "general ({target:?})"
             );
+            for topic in TOPICS {
+                assert_eq!(
+                    unknown_mentions(guide(topic, target).unwrap()),
+                    Vec::<String>::new(),
+                    "{topic} ({target:?})"
+                );
+            }
         }
     }
 
     #[test]
     fn the_agents_guide_ends_with_the_protocol_itself() {
-        assert!(guide("agents").unwrap().ends_with(AGENTS));
+        assert!(guide("agents", Target::Rust).unwrap().ends_with(AGENTS));
     }
 }

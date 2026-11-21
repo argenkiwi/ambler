@@ -118,7 +118,9 @@ pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scaffold::pave::UNFINISHED;
+
+    /// What `amble node` leaves in a Rust node until it is written.
+    const UNFINISHED: &str = concat!("todo", "!(");
     use crate::testing::Fake;
     use std::collections::VecDeque;
     use std::sync::Mutex;
@@ -133,6 +135,7 @@ mod tests {
             checks: Mutex::new(checks.iter().copied().collect()),
             ..Fake::with_files(&[
                 ("Cargo.toml", ""),
+                ("src/engine.rs", ""),
                 ("src/nodes/mod.rs", ""),
                 ("specs/hello.md", SPEC),
             ])
