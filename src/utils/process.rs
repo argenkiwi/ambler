@@ -78,6 +78,7 @@ pub fn format(target: Target, paths: &[String]) {
                 .args(["check", "--write", "--no-errors-on-unmatched"])
                 .args(paths)
                 .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .status()
         }
     };

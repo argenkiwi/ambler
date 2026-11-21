@@ -1,8 +1,10 @@
 use crate::Node;
-use crate::nodes::{HasArgs, HasMessage, HasPlan};
+use crate::nodes::{HasArgs, HasMessage, HasPlan, HasTarget};
 use crate::scaffold::rust::node::{NodeSpec, has_trait, node, shorten, trait_name};
 use crate::scaffold::rust::register::{add_use, append, register};
 use crate::scaffold::rust::source::state_traits;
+use crate::scaffold::target::Target;
+use crate::scaffold::ts::{self, source::Field};
 use crate::scaffold::{Change, Plan, args, names};
 use crate::utils::fs;
 use std::convert::Infallible;
@@ -24,6 +26,8 @@ pub enum Outcome {
 pub trait Utils {
     fn exists(&self, path: &str) -> bool;
     fn read(&self, path: &str) -> io::Result<String>;
+    /// The names of the entries in the folder at `path`.
+    fn entries(&self, path: &str) -> io::Result<Vec<String>>;
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -37,9 +41,14 @@ impl Utils for SystemUtils {
     fn read(&self, path: &str) -> io::Result<String> {
         fs::read(path)
     }
+
+    fn entries(&self, path: &str) -> io::Result<Vec<String>> {
+        fs::entries(path)
+    }
 }
 
-/// Plans a new node: its skeleton in `src/nodes/`, its registration and any new state trait.
+/// Plans a new node. In Rust: its skeleton in `src/nodes/`, its registration and any new state
+/// trait. In TypeScript: its skeleton in `nodes/` and its failing tests in `nodes/tests/`.
 #[derive(Clone, Debug, Default)]
 pub struct PlanNode<U = SystemUtils> {
     utils: U,
@@ -60,7 +69,14 @@ impl<U> PlanNode<U> {
 }
 
 impl<U: Utils> PlanNode<U> {
-    fn plan(&self, args: &[String]) -> Result<Plan, String> {
+    fn plan(&self, target: Target, args: &[String]) -> Result<Plan, String> {
+        match target {
+            Target::Rust => self.plan_rust(args),
+            Target::TypeScript => self.plan_ts(args),
+        }
+    }
+
+    fn plan_rust(&self, args: &[String]) -> Result<Plan, String> {
         let parsed = args::parse(args, &["outcomes", "state"], &["terminal", "fallible"])
             .map_err(|e| format!("{e}\n{USAGE}"))?;
         let [name] = parsed.positionals.as_slice() else {
@@ -157,16 +173,141 @@ impl<U: Utils> PlanNode<U> {
     }
 }
 
+impl<U: Utils> PlanNode<U> {
+    /// The type other nodes give the `State` field `field`, if one of them has it.
+    fn known_field(&self, field: &str) -> Option<String> {
+        let mut files = self.utils.entries("nodes").ok()?;
+        files.sort();
+        files
+            .iter()
+            .filter(|file| file.ends_with(".ts"))
+            .filter_map(|file| self.utils.read(&format!("nodes/{file}")).ok())
+            .filter_map(|source| ts::source::parse(&source).ok())
+            .find_map(|module| {
+                module
+                    .object("State")?
+                    .iter()
+                    .find(|known| known.name == field)
+                    .map(|known| known.ty.clone())
+            })
+    }
+
+    fn plan_ts(&self, args: &[String]) -> Result<Plan, String> {
+        let parsed = args::parse(args, &["outcomes", "state"], &["terminal", "fallible"])
+            .map_err(|e| format!("{e}\n{USAGE}"))?;
+        let [name] = parsed.positionals.as_slice() else {
+            return Err(USAGE.to_string());
+        };
+        let name = name.replace('-', "_");
+        if !names::is_snake(&name) {
+            return Err(format!(
+                "`{name}` is not a node name: use snake_case or kebab-case"
+            ));
+        }
+        if parsed.has("fallible") {
+            return Err(
+                "`--fallible` is for Rust nodes: a TypeScript node throws when it cannot go on, \
+                 and routes an expected failure through an edge such as `--outcomes ok,error`"
+                    .to_string(),
+            );
+        }
+        let terminal = parsed.has("terminal");
+        let outcomes = parsed.list("outcomes");
+        if outcomes.is_empty() != terminal {
+            return Err(format!(
+                "say what the node reports: `--outcomes <a,b>`, or `--terminal` if it ends the \
+                 walk\n{USAGE}"
+            ));
+        }
+        let edges: Vec<String> = if terminal {
+            vec![ts::node::TERMINAL_EDGE.to_string()]
+        } else {
+            outcomes.into_iter().map(ts::node::edge_name).collect()
+        };
+        if let Some(edge) = edges.iter().find(|edge| !ts::node::is_edge_name(edge)) {
+            return Err(format!("`{edge}` is not an edge name"));
+        }
+
+        if !self.utils.exists("ambler.ts") {
+            return Err(
+                "ambler.ts not found: run this from the root of an Ambler project".to_string(),
+            );
+        }
+        let path = Target::TypeScript.node_path(&name);
+        let test_path = Target::TypeScript.node_test_path(&name).unwrap_or_default();
+        if self.utils.exists(&path) {
+            return Err(format!("{path} already exists"));
+        }
+
+        // `--state field` takes the type another node gives it; `--state field:Type` sets it.
+        let mut state: Vec<Field> = Vec::new();
+        for given in parsed.values("state") {
+            let (field, ty) = match given.split_once(':') {
+                Some((field, ty)) => (field.trim(), Some(ty.trim())),
+                None => (given.trim(), None),
+            };
+            let snake = names::snake(field);
+            if !names::is_snake(&snake) {
+                return Err(format!("`{field}` is not a field name"));
+            }
+            let field = names::camel(&snake);
+            let ty = match ty {
+                Some(ty) if !ty.is_empty() => ty.to_string(),
+                _ => self.known_field(&field).ok_or_else(|| {
+                    format!(
+                        "no node has a `{field}` field yet: give the type, `--state \
+                         {field}:<Type>`"
+                    )
+                })?,
+            };
+            if state.iter().all(|known| known.name != field) {
+                state.push(Field {
+                    name: field,
+                    ty,
+                    optional: false,
+                });
+            }
+        }
+
+        let spec = ts::node::NodeSpec {
+            name: name.clone(),
+            edges,
+            terminal,
+            state,
+        };
+        let declared = ts::node::node(&spec);
+        ts::source::parse(&declared).map_err(|(_, message)| {
+            format!("the generated node does not parse ({message}): check the `--state` types")
+        })?;
+        Ok(Plan {
+            changes: vec![
+                Change::source(Target::TypeScript, path, declared),
+                Change::source(
+                    Target::TypeScript,
+                    test_path.clone(),
+                    ts::node::tests(&spec),
+                ),
+            ],
+            hint: format!(
+                "Next: give `Utils` a function per side effect and write the tests in \
+                 {test_path}, see them fail with `{}`, then implement the factory. See `amble \
+                 help node-design`.",
+                Target::TypeScript.node_test_command(&name)
+            ),
+        })
+    }
+}
+
 impl<S, U> Node<S> for PlanNode<U>
 where
-    S: HasArgs + HasPlan + HasMessage + Send,
+    S: HasTarget + HasArgs + HasPlan + HasMessage + Send,
     U: Utils + Sync,
 {
     type Outcome = Outcome;
     type Error = Infallible;
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Infallible> {
-        Ok(match self.plan(state.args()) {
+        Ok(match self.plan(state.target(), state.args()) {
             Ok(plan) => {
                 *state.plan_mut() = plan;
                 Outcome::Planned
@@ -310,6 +451,110 @@ mod tests {
             panic!("expected the node file");
         };
         assert!(node.contains("    use crate::board::Board;\n"));
+    }
+
+    async fn run_ts(fake: &Fake, args: &[&str]) -> (Outcome, State) {
+        let mut state = State::with_target(Target::TypeScript, args);
+        let Ok(outcome) = PlanNode::with_utils(fake).run(&mut state).await;
+        (outcome, state)
+    }
+
+    const TS_PROJECT: &[(&str, &str)] = &[
+        ("ambler.ts", ""),
+        (
+            "nodes/count.ts",
+            include_str!("../../templates/ts/example/nodes/count.ts"),
+        ),
+    ];
+
+    #[tokio::test]
+    async fn plans_a_typescript_node_and_its_tests() {
+        let fake = Fake::with_files(TS_PROJECT);
+
+        let (outcome, state) = run_ts(
+            &fake,
+            &[
+                "read-move",
+                "--outcomes",
+                "valid,invalid_input",
+                "--state",
+                "count",
+                "--state",
+                "player_name:string",
+            ],
+        )
+        .await;
+
+        assert_eq!(outcome, Outcome::Planned, "{:?}", state.message);
+        let [
+            Change::Write {
+                path,
+                contents,
+                format: Some(Target::TypeScript),
+            },
+            Change::Write {
+                path: test_path,
+                contents: tests,
+                ..
+            },
+        ] = state.plan.changes.as_slice()
+        else {
+            panic!("expected the node and its tests: {:?}", state.plan.changes);
+        };
+        assert_eq!(path, "nodes/read-move.ts");
+        assert!(contents.contains("export type Edge = \"onValid\" | \"onInvalidInput\";\n"));
+        assert!(contents.contains("  count: number;\n  playerName: string;\n"));
+        assert_eq!(test_path, "nodes/tests/read-move.test.ts");
+        assert!(tests.contains("test(\"readMove takes onInvalidInput"));
+        assert!(
+            state
+                .plan
+                .hint
+                .contains("`bun test nodes/tests/read-move.test.ts`")
+        );
+    }
+
+    #[tokio::test]
+    async fn plans_a_terminal_typescript_node() {
+        let fake = Fake::with_files(TS_PROJECT);
+
+        let (outcome, state) = run_ts(&fake, &["stop", "--terminal"]).await;
+
+        assert_eq!(outcome, Outcome::Planned);
+        let Change::Write { contents, .. } = &state.plan.changes[0] else {
+            panic!("expected the node file");
+        };
+        assert!(contents.contains("export type Edge = \"onDone\";\n"));
+    }
+
+    #[tokio::test]
+    async fn rejects_what_a_typescript_project_does_not_allow() {
+        let fake = Fake::with_files(TS_PROJECT);
+        let rejected = |args: &'static [&'static str]| {
+            let fake = &fake;
+            async move {
+                let (outcome, state) = run_ts(fake, args).await;
+                assert_eq!(outcome, Outcome::Rejected);
+                state.message.unwrap()
+            }
+        };
+
+        assert!(
+            rejected(&["ask", "--terminal", "--fallible"])
+                .await
+                .contains("`--fallible` is for Rust nodes")
+        );
+        assert!(
+            rejected(&["ask", "--terminal", "--state", "total"])
+                .await
+                .contains("no node has a `total` field yet")
+        );
+        assert_eq!(
+            rejected(&["count", "--terminal"]).await,
+            "nodes/count.ts already exists"
+        );
+        let (_, state) = run_ts(&Fake::default(), &["ask", "--terminal"]).await;
+        assert!(state.message.unwrap().contains("root of an Ambler project"));
     }
 
     #[tokio::test]

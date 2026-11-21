@@ -158,6 +158,9 @@ impl plan_node::Utils for &Fake {
     fn read(&self, path: &str) -> io::Result<String> {
         Fake::read(self, path)
     }
+    fn entries(&self, path: &str) -> io::Result<Vec<String>> {
+        plan_project::Utils::entries(self, path)
+    }
 }
 
 impl plan_util::Utils for &Fake {
