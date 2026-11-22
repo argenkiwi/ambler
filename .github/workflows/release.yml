@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch git tags
+        run: git fetch --tags --force
+
+      - name: Check version increase
+        id: check_version
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          python3 -c '
+          import os, re, subprocess, sys
+
+          def read_version(toml_content):
+              in_package = False
+              for line in toml_content.splitlines():
+                  line = line.strip()
+                  if line.startswith("[") and line.endswith("]"):
+                      in_package = (line == "[package]")
+                  elif in_package and re.match(r"^version\s*=", line):
+                      m = re.search(r"\"([^\"]+)\"", line)
+                      if m:
+                          return m.group(1)
+              return None
+
+          def semver_key(v):
+              v = v.split("+")[0]
+              m = re.match(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$", v)
+              if not m:
+                  raise ValueError(f"Invalid semver: {v}")
+              major, minor, patch, pre = m.groups()
+              major, minor, patch = int(major), int(minor), int(patch)
+              if pre is None:
+                  pre_parts = (1,)
+              else:
+                  parsed_pre = []
+                  for part in pre.split("."):
+                      if part.isdigit():
+                          parsed_pre.append((0, int(part)))
+                      else:
+                          parsed_pre.append((1, part))
+                  pre_parts = (0, tuple(parsed_pre))
+              return (major, minor, patch, pre_parts)
+
+          with open("Cargo.toml", "r", encoding="utf-8") as f:
+              curr_content = f.read()
+          curr_ver = read_version(curr_content)
+          if not curr_ver:
+              sys.exit("Error: Could not determine version from current Cargo.toml")
+
+          tag = f"v{curr_ver}"
+
+          # Check if tag already exists in git
+          tag_exists = subprocess.run(
+              ["git", "rev-parse", f"refs/tags/{tag}"],
+              stdout=subprocess.DEVNULL,
+              stderr=subprocess.DEVNULL,
+          ).returncode == 0
+
+          if tag_exists:
+              print(f"Tag {tag} already exists. Skipping release.")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as gh_out:
+                  gh_out.write("should_release=false\n")
+              sys.exit(0)
+
+          # Find previous commit on main
+          before_sha = os.environ.get("BEFORE_SHA", "").strip()
+          prev_content = None
+          if before_sha and not re.match(r"^0+$", before_sha):
+              try:
+                  prev_content = subprocess.check_output(
+                      ["git", "show", f"{before_sha}:Cargo.toml"],
+                      stderr=subprocess.PIPE,
+                      text=True,
+                  )
+              except subprocess.CalledProcessError:
+                  prev_content = None
+
+          if prev_content is None:
+              try:
+                  prev_content = subprocess.check_output(
+                      ["git", "show", "HEAD~1:Cargo.toml"],
+                      stderr=subprocess.PIPE,
+                      text=True,
+                  )
+              except subprocess.CalledProcessError:
+                  prev_content = None
+
+          if prev_content:
+              prev_ver = read_version(prev_content)
+          else:
+              prev_ver = None
+
+          print(f"Current version: {curr_ver}")
+          print(f"Previous version: {prev_ver}")
+
+          if prev_ver and semver_key(curr_ver) <= semver_key(prev_ver):
+              print(f"Version did not increase ({prev_ver} -> {curr_ver}). Skipping release.")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as gh_out:
+                  gh_out.write("should_release=false\n")
+              sys.exit(0)
+
+          print(f"Version increased ({prev_ver} -> {curr_ver}) and tag {tag} does not exist. Creating release!")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as gh_out:
+              gh_out.write("should_release=true\n")
+              gh_out.write(f"version={curr_ver}\n")
+              gh_out.write(f"tag={tag}\n")
+          '
+
+      - name: Run tests before release
+        if: steps.check_version.outputs.should_release == 'true'
+        run: cargo test --verbose
+
+      - name: Create Release
+        if: steps.check_version.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.check_version.outputs.tag }}" \
+            --title "${{ steps.check_version.outputs.tag }}" \
+            --generate-notes
