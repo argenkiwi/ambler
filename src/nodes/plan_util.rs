@@ -1,6 +1,7 @@
 use crate::Node;
-use crate::nodes::{HasArgs, HasMessage, HasPlan};
-use crate::scaffold::register::register;
+use crate::nodes::{HasArgs, HasMessage, HasPlan, HasTarget};
+use crate::scaffold::rust::register::register;
+use crate::scaffold::target::Target;
 use crate::scaffold::{Change, Plan, args, names};
 use crate::utils::fs;
 use std::convert::Infallible;
@@ -36,7 +37,7 @@ impl Utils for SystemUtils {
     }
 }
 
-/// Plans a new utility module in `src/utils/` and its registration.
+/// Plans a new utility module: in Rust, in `src/utils/` and registered; in TypeScript, in `utils/`.
 #[derive(Clone, Debug, Default)]
 pub struct PlanUtil<U = SystemUtils> {
     utils: U,
@@ -57,11 +58,14 @@ impl<U> PlanUtil<U> {
 }
 
 impl<U: Utils> PlanUtil<U> {
-    fn plan(&self, args: &[String]) -> Result<Plan, String> {
+    fn plan(&self, target: Target, args: &[String]) -> Result<Plan, String> {
         let parsed = args::parse(args, &[], &[]).map_err(|e| format!("{e}\n{USAGE}"))?;
         let [name] = parsed.positionals.as_slice() else {
             return Err(USAGE.to_string());
         };
+        if target == Target::TypeScript {
+            return self.plan_ts(&name.replace('-', "_"));
+        }
         if !names::is_snake(name) {
             return Err(format!("`{name}` is not a module name: use snake_case"));
         }
@@ -85,18 +89,45 @@ impl<U: Utils> PlanUtil<U> {
             ),
         })
     }
+
+    fn plan_ts(&self, name: &str) -> Result<Plan, String> {
+        if !names::is_snake(name) {
+            return Err(format!(
+                "`{name}` is not a module name: use snake_case or kebab-case"
+            ));
+        }
+        if !self.utils.exists("ambler.ts") {
+            return Err(
+                "ambler.ts not found: run this from the root of an Ambler project".to_string(),
+            );
+        }
+        let path = Target::TypeScript.util_path(name);
+        if self.utils.exists(&path) {
+            return Err(format!("{path} already exists"));
+        }
+        Ok(Plan {
+            changes: vec![Change::write(
+                &path,
+                "// TODO: say what side effects this module wraps.\n",
+            )],
+            hint: format!(
+                "Next: export documented functions from {path} and use them in a node's \
+                 `defaultUtils`. See `amble help util`."
+            ),
+        })
+    }
 }
 
 impl<S, U> Node<S> for PlanUtil<U>
 where
-    S: HasArgs + HasPlan + HasMessage + Send,
+    S: HasTarget + HasArgs + HasPlan + HasMessage + Send,
     U: Utils + Sync,
 {
     type Outcome = Outcome;
     type Error = Infallible;
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Infallible> {
-        Ok(match self.plan(state.args()) {
+        Ok(match self.plan(state.target(), state.args()) {
             Ok(plan) => {
                 *state.plan_mut() = plan;
                 Outcome::Planned
@@ -118,6 +149,24 @@ mod tests {
         let mut state = State::with_args(args);
         let Ok(outcome) = PlanUtil::with_utils(fake).run(&mut state).await;
         (outcome, state)
+    }
+
+    #[tokio::test]
+    async fn plans_a_typescript_module_without_registering_it() {
+        let fake = Fake::with_files(&[("ambler.ts", "")]);
+        let mut state = State::with_target(Target::TypeScript, &["llm-chat"]);
+
+        let Ok(outcome) = PlanUtil::with_utils(&fake).run(&mut state).await;
+
+        assert_eq!(outcome, Outcome::Planned);
+        assert_eq!(
+            state.plan.changes,
+            [Change::write(
+                "utils/llm-chat.ts",
+                "// TODO: say what side effects this module wraps.\n"
+            )]
+        );
+        assert!(state.plan.hint.contains("`defaultUtils`"));
     }
 
     #[tokio::test]

@@ -2,11 +2,11 @@
 
 Scaffolds and checks Ambler projects: programs built as walks (state machines) of small, tested nodes.
 
-    amble new [<name>] [--example]       create a project (no name: in this empty folder)
+    amble new [<name>] [--example] [--target rust|ts]  create a project (no name: in this empty folder)
     amble node <name> …                  add a node: its contract, a todo body, failing tests
     amble util <name>                    add a module of side-effectful functions
     amble walk <name> --nodes … --edge … wire nodes into a walk, with its spec and runner
-    amble check [--no-cargo]             verify the conventions, then fmt, clippy and tests
+    amble check [--lint-only]             verify the conventions, then fmt, clippy and tests
     amble pave <spec> --agent '<cmd>'    implement a spec with an agent, one task per run
     amble help [topic]                   this guide, or one topic
 

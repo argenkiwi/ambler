@@ -1,6 +1,7 @@
 use crate::Node;
 use crate::nodes::HasPlan;
 use crate::scaffold::Change;
+use crate::scaffold::target::Target;
 use crate::utils::{fs, process};
 use std::io;
 
@@ -13,8 +14,8 @@ pub enum Error {
 pub trait Utils {
     fn write(&self, path: &str, contents: &str) -> io::Result<()>;
     fn symlink(&self, path: &str, target: &str) -> io::Result<()>;
-    /// Formats the Rust files at `paths` in place, if it can.
-    fn format(&self, paths: &[String]);
+    /// Formats `target`'s source files at `paths` in place, if it can.
+    fn format(&self, target: Target, paths: &[String]);
     fn print(&self, message: &str);
 }
 
@@ -30,8 +31,8 @@ impl Utils for SystemUtils {
         fs::symlink(path, target)
     }
 
-    fn format(&self, paths: &[String]) {
-        process::rustfmt(paths);
+    fn format(&self, target: Target, paths: &[String]) {
+        process::format(target, paths);
     }
 
     fn print(&self, message: &str) {
@@ -70,15 +71,18 @@ where
 
     async fn run(&self, state: &mut S) -> Result<(), Error> {
         let plan = state.plan();
-        let mut generated = Vec::new();
+        let mut generated: Vec<(Target, Vec<String>)> = Vec::new();
         for change in &plan.changes {
             let path = change.path();
             match change {
                 Change::Write {
                     contents, format, ..
                 } => {
-                    if *format {
-                        generated.push(path.to_string());
+                    if let Some(target) = *format {
+                        match generated.iter_mut().find(|(known, _)| *known == target) {
+                            Some((_, paths)) => paths.push(path.to_string()),
+                            None => generated.push((target, vec![path.to_string()])),
+                        }
                     }
                     self.utils.write(path, contents)
                 }
@@ -90,7 +94,9 @@ where
             })?;
             self.utils.print(&format!("wrote {path}"));
         }
-        self.utils.format(&generated);
+        for (target, paths) in &generated {
+            self.utils.format(*target, paths);
+        }
         if !plan.hint.is_empty() {
             self.utils.print(&plan.hint);
         }

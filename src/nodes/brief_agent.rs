@@ -1,8 +1,10 @@
 use crate::Node;
 use crate::nodes::HasPaving;
 use crate::scaffold::pave::{
-    Brief, Paving, Task, node_prompt, outcomes_line, repair_prompt, spec_nodes, walk_prompt,
+    Brief, Inventory, Paving, Task, node_prompt, outcomes_line, repair_prompt, spec_nodes,
+    walk_prompt,
 };
+use crate::scaffold::target::Target;
 use crate::utils::{fs, git, process};
 use std::io;
 
@@ -29,6 +31,8 @@ pub enum Error {
 /// The side effects [`BriefAgent`] needs: one method each, mocked in the tests.
 pub trait Utils {
     fn read(&self, path: &str) -> io::Result<String>;
+    /// The names of the entries in the folder at `path`.
+    fn entries(&self, path: &str) -> io::Result<Vec<String>>;
     /// The uncommitted changes, one line each.
     fn status(&self) -> io::Result<String>;
     /// Runs the agent `command` with `prompt` as its last argument, and reports whether it
@@ -43,6 +47,10 @@ pub struct SystemUtils;
 impl Utils for SystemUtils {
     fn read(&self, path: &str) -> io::Result<String> {
         fs::read(path)
+    }
+
+    fn entries(&self, path: &str) -> io::Result<Vec<String>> {
+        fs::entries(path)
     }
 
     fn status(&self) -> io::Result<String> {
@@ -79,32 +87,54 @@ impl<U> BriefAgent<U> {
 }
 
 impl<U: Utils> BriefAgent<U> {
+    /// The nodes the project has and the state they share.
+    fn inventory(&self, target: Target) -> Inventory {
+        match target {
+            Target::Rust => Inventory::rust(&self.utils.read(MODULES).unwrap_or_default()),
+            Target::TypeScript => {
+                let mut stems: Vec<String> = self
+                    .utils
+                    .entries("nodes")
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(|file| file.strip_suffix(".ts").map(str::to_string))
+                    .collect();
+                stems.sort();
+                let nodes: Vec<(String, String)> = stems
+                    .into_iter()
+                    .map(|stem| {
+                        let source = self.utils.read(&format!("nodes/{stem}.ts"));
+                        (stem, source.unwrap_or_default())
+                    })
+                    .collect();
+                Inventory::ts(&nodes)
+            }
+        }
+    }
+
     /// The prompt for the current task.
     fn prompt(&self, paving: &Paving) -> io::Result<String> {
         let settings = &paving.settings;
         let spec = self.utils.read(&settings.spec_path())?;
-        let modules = self.utils.read(MODULES).unwrap_or_default();
+        let target = settings.target;
+        let inventory = self.inventory(target);
         let brief = Brief {
             settings,
             spec: &spec,
-            modules: &modules,
+            inventory: &inventory,
             passed: paving.passed,
             output: &paving.output,
         };
         let exists = |path: &str| self.utils.read(path).is_ok();
         Ok(match &paving.task {
-            Some(Task::Node(name)) => {
-                node_prompt(&brief, name, exists(&format!("src/nodes/{name}.rs")))
-            }
+            Some(Task::Node(name)) => node_prompt(&brief, name, exists(&target.node_path(name))),
             Some(Task::Walk) => {
                 let outcomes: Vec<String> = spec_nodes(&spec)
                     .iter()
-                    .map(
-                        |name| match self.utils.read(&format!("src/nodes/{name}.rs")) {
-                            Ok(source) => outcomes_line(name, &source),
-                            Err(_) => format!("- {name}: missing"),
-                        },
-                    )
+                    .map(|name| match self.utils.read(&target.node_path(name)) {
+                        Ok(source) => outcomes_line(target, name, &source),
+                        Err(_) => format!("- {name}: missing"),
+                    })
                     .collect();
                 walk_prompt(&brief, &outcomes, exists(&settings.walk_path()))
             }

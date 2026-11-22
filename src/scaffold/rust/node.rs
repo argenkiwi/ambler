@@ -1,7 +1,7 @@
 //! Generates a node skeleton: the types that are its contract, a `todo!()` body and failing tests.
 
-use super::names;
 use super::source::{Field, HasTrait};
+use crate::scaffold::names;
 use std::collections::BTreeSet;
 
 /// Types whose getter returns the value rather than a reference.
@@ -289,7 +289,7 @@ fn tests(spec: &NodeSpec) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scaffold::source::state_traits;
+    use crate::scaffold::rust::source::state_traits;
 
     fn count() -> Vec<HasTrait> {
         state_traits(&has_trait("count", "i32")).unwrap()

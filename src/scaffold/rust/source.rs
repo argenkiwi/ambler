@@ -480,8 +480,8 @@ pub fn node_info(name: &str, src: &str) -> Result<NodeInfo, String> {
 mod tests {
     use super::*;
 
-    const START: &str = include_str!("../../templates/example/start.rs");
-    const STOP: &str = include_str!("../../templates/example/stop.rs");
+    const START: &str = include_str!("../../../templates/rust/example/start.rs");
+    const STOP: &str = include_str!("../../../templates/rust/example/stop.rs");
 
     #[test]
     fn reads_a_fallible_node_with_outcomes() {

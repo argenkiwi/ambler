@@ -67,6 +67,22 @@ pub fn shout(name: &str) -> String {
     name.to_ascii_uppercase()
 }
 
+/// `check_config` → `check-config`, a TypeScript file name.
+#[must_use]
+pub fn kebab(name: &str) -> String {
+    words(name).collect::<Vec<_>>().join("-")
+}
+
+/// `check_config` → `checkConfig`, a TypeScript variable or property name.
+#[must_use]
+pub fn camel(name: &str) -> String {
+    let pascal = pascal(name);
+    let mut chars = pascal.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_ascii_lowercase().to_string() + chars.as_str()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,5 +104,8 @@ mod tests {
         assert_eq!(snake("InvalidInput"), "invalid_input");
         assert_eq!(title("check_config"), "Check Config");
         assert_eq!(shout("check_config"), "CHECK_CONFIG");
+        assert_eq!(kebab("check_config"), "check-config");
+        assert_eq!(camel("check_config"), "checkConfig");
+        assert_eq!(camel("InvalidInput"), "invalidInput");
     }
 }

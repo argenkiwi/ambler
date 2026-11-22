@@ -82,7 +82,9 @@ where
     async fn run(&self, state: &mut S) -> Result<Outcome, Error> {
         let paving = state.paving();
         self.utils.print("[amble pave] amble check …");
-        let passed = self.utils.run_check(&paving.log, &paving.settings.target)?;
+        let passed = self
+            .utils
+            .run_check(&paving.log, &paving.settings.build_dir)?;
         let output = self.utils.read(&paving.log)?;
         if !passed {
             self.utils.eprint("[amble pave] amble check failed:");

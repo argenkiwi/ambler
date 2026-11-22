@@ -1,12 +1,12 @@
 # Program Specifications
 
-`amble new [<name>] [--example]` creates a new Ambler project in a folder named after it or, without a name, in the current folder.
+`amble new [<name>] [--example] [--target rust|ts]` creates a new Ambler project in a folder named after it or, without a name, in the current folder. The project is Rust (ambler-rs) unless `--target` or the `AMBLE_TARGET` environment variable says TypeScript (ambler-ts).
 
 ## Nodes
 
 ### Plan Project
 - Initial node.
-- Reads the project name and the `--example` switch from the arguments and works out every file of the project, with the counter walk if the example was asked for.
+- Reads the project name and the `--example` switch from the arguments and works out every file of the project for the target, with the counter walk if the example was asked for.
 - Without a name, the project is named after the current folder and its files are planned in that folder.
 - If the arguments are valid and no folder with that name exists, it transitions to `WRITE`. Without a name, the current folder must be empty but for `.git`.
 - If the name is invalid, there is more than one name, a flag is unknown or the folder exists, it records why and transitions to `REPORT`. Without a name, it does the same if the current folder's name is not a valid package name or the folder holds anything other than `.git`.
@@ -21,6 +21,7 @@
 ## Shared State
 
 The shared state consists of:
+- `target`: the language of the project to create.
 - `args`: the arguments after the verb.
 - `plan`: the files and links to write, and the next steps to print afterwards.
 - `message`: why the verb failed, if it did.

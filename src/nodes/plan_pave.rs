@@ -1,6 +1,7 @@
 use crate::Node;
-use crate::nodes::{HasArgs, HasMessage, HasPaving};
-use crate::scaffold::pave::{self, AGENT_VAR, LOG_NAME, Paving, TARGET_VAR};
+use crate::nodes::{HasArgs, HasMessage, HasPaving, HasTarget};
+use crate::scaffold::pave::{self, AGENT_VAR, BUILD_VAR, LOG_NAME, Paving};
+use crate::scaffold::target::Target;
 use crate::utils::{fs, git};
 use std::convert::Infallible;
 
@@ -60,9 +61,14 @@ impl<U> PlanPave<U> {
 }
 
 impl<U: Utils> PlanPave<U> {
-    fn plan(&self, args: &[String]) -> Result<Paving, String> {
-        let settings = pave::settings(args, self.utils.env(AGENT_VAR), self.utils.env(TARGET_VAR))?;
-        if !(self.utils.exists("Cargo.toml") && self.utils.exists("src/nodes")) {
+    fn plan(&self, target: Target, args: &[String]) -> Result<Paving, String> {
+        let settings = pave::settings(
+            target,
+            args,
+            self.utils.env(AGENT_VAR),
+            self.utils.env(BUILD_VAR),
+        )?;
+        if Target::detect(|path| self.utils.exists(path)) != Some(target) {
             return Err("run this from the root of an Ambler project".to_string());
         }
         let spec = settings.spec_path();
@@ -85,14 +91,14 @@ impl<U: Utils> PlanPave<U> {
 
 impl<S, U> Node<S> for PlanPave<U>
 where
-    S: HasArgs + HasPaving + HasMessage + Send,
+    S: HasTarget + HasArgs + HasPaving + HasMessage + Send,
     U: Utils + Sync,
 {
     type Outcome = Outcome;
     type Error = Infallible;
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Infallible> {
-        Ok(match self.plan(state.args()) {
+        Ok(match self.plan(state.target(), state.args()) {
             Ok(paving) => {
                 *state.paving_mut() = paving;
                 Outcome::Ready
@@ -112,6 +118,7 @@ mod tests {
 
     const PROJECT: &[(&str, &str)] = &[
         ("Cargo.toml", ""),
+        ("src/engine.rs", ""),
         ("src/nodes/mod.rs", ""),
         ("specs/game.md", ""),
     ];
@@ -132,7 +139,7 @@ mod tests {
     #[tokio::test]
     async fn records_the_settings_and_the_log_in_the_git_folder() {
         let fake = Fake {
-            env: vec![(AGENT_VAR, "pi -p"), (TARGET_VAR, "/workspace/target")],
+            env: vec![(AGENT_VAR, "pi -p"), (BUILD_VAR, "/workspace/target")],
             ..project()
         };
 
@@ -144,7 +151,8 @@ mod tests {
         assert_eq!(paving.settings.spec, "game");
         assert_eq!(paving.settings.agent.as_deref(), Some("pi -p"));
         assert_eq!(paving.settings.max_repairs, 1);
-        assert_eq!(paving.settings.target, "/workspace/target");
+        assert_eq!(paving.settings.build_dir, "/workspace/target");
+        assert_eq!(paving.settings.target, Target::Rust);
         assert_eq!(paving.log, format!("/repo/.git/{LOG_NAME}"));
     }
 

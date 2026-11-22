@@ -14,10 +14,10 @@ Do not write or register nodes, walks or utility modules by hand, and do not wor
 
 | The user wants | Run | Read first |
 |---|---|---|
-| A new project | `amble new <name>`, or `amble new` in an empty folder (`--example` adds a reference walk) | `amble help new` |
+| A new project | `amble new <name>`, or `amble new` in an empty folder (`--example` adds a reference walk, `--target ts` makes it TypeScript) | `amble help new` |
 | A node, step or handler | `amble node <name> …` | `amble help node-design` |
 | Tests for a node | nothing to generate | `amble help testing` |
-| A helper shared by nodes, or one that needs a crate | `amble util <name>` | `amble help util` |
+| A helper shared by nodes, or one that needs a crate or package | `amble util <name>` | `amble help util` |
 | A walk, flow or program | `amble walk <name> --nodes … --edge …` | `amble help walk` |
 | A spec | written by hand; `amble walk` starts it | `amble help spec` |
 | To know the work is done | `amble check` | `amble help check` |

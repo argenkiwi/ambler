@@ -18,10 +18,16 @@ pub mod write;
 
 use crate::scaffold::Plan;
 use crate::scaffold::pave::Paving;
+use crate::scaffold::target::Target;
 
 /// A state that has the verb's command-line arguments.
 pub trait HasArgs {
     fn args(&self) -> &[String];
+}
+
+/// A state that has the language of the project being made or worked on.
+pub trait HasTarget {
+    fn target(&self) -> Target;
 }
 
 /// A state that has the changes a verb is about to make.

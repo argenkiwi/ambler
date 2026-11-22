@@ -1,5 +1,6 @@
 //! File system access, relative to the current directory.
 
+use crate::scaffold::target::Target;
 use std::collections::BTreeMap;
 use std::io;
 use std::path::Path;
@@ -74,20 +75,34 @@ fn create_parent(path: &str) -> io::Result<()> {
     }
 }
 
-/// The files `amble check` looks at: `Cargo.toml`, every `.rs` under `src/` and every `.md`
-/// under `specs/`, keyed by `/`-separated path.
+/// The files `amble check` looks at, keyed by `/`-separated path: every `.md` under `specs/`
+/// and, for Rust, `Cargo.toml` and every `.rs` under `src/`; for TypeScript, `package.json`,
+/// `ambler.ts` and every `.ts` under `nodes/`, `walks/` and `utils/`.
 ///
-/// Folders that do not exist are skipped: it is the linter's job to say what is missing.
+/// Files and folders that do not exist are skipped: it is the linter's job to say what is
+/// missing.
 ///
 /// # Errors
 ///
 /// Returns the I/O error if a folder or file that exists cannot be read.
-pub fn read_project() -> io::Result<BTreeMap<String, String>> {
+pub fn read_project(target: Target) -> io::Result<BTreeMap<String, String>> {
     let mut files = BTreeMap::new();
-    if exists("Cargo.toml") {
-        files.insert("Cargo.toml".to_string(), read("Cargo.toml")?);
+    let (roots, folders, extension): (&[&str], &[&str], &str) = match target {
+        Target::Rust => (&["Cargo.toml"], &["src"], "rs"),
+        Target::TypeScript => (
+            &["package.json", "ambler.ts"],
+            &["nodes", "walks", "utils"],
+            "ts",
+        ),
+    };
+    for root in roots {
+        if exists(root) {
+            files.insert((*root).to_string(), read(root)?);
+        }
     }
-    collect("src", "rs", &mut files)?;
+    for folder in folders {
+        collect(folder, extension, &mut files)?;
+    }
     collect("specs", "md", &mut files)?;
     Ok(files)
 }

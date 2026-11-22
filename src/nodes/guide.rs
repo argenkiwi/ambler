@@ -1,6 +1,6 @@
 use crate::Node;
 use crate::guides;
-use crate::nodes::{HasArgs, HasMessage};
+use crate::nodes::{HasArgs, HasMessage, HasTarget};
 use std::convert::Infallible;
 
 /// Where [`Guide`] leaves the walk.
@@ -47,7 +47,7 @@ impl<U> Guide<U> {
 
 impl<S, U> Node<S> for Guide<U>
 where
-    S: HasArgs + HasMessage + Send,
+    S: HasTarget + HasArgs + HasMessage + Send,
     U: Utils + Sync,
 {
     type Outcome = Outcome;
@@ -55,7 +55,7 @@ where
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Infallible> {
         let topic = state.args().first().map_or("", String::as_str);
-        Ok(match guides::guide(topic) {
+        Ok(match guides::guide(topic, state.target()) {
             Some(guide) => {
                 self.utils.print(guide.trim_end());
                 Outcome::Printed

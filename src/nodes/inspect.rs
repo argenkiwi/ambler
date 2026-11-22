@@ -1,6 +1,7 @@
 use crate::Node;
-use crate::nodes::HasMessage;
-use crate::scaffold::lint::lint;
+use crate::nodes::{HasMessage, HasTarget};
+use crate::scaffold::lint;
+use crate::scaffold::target::Target;
 use crate::utils::fs;
 use std::collections::BTreeMap;
 use std::io;
@@ -21,8 +22,8 @@ pub enum Error {
 }
 
 pub trait Utils {
-    /// The project's `Cargo.toml`, sources and specs, by path.
-    fn read_project(&self) -> io::Result<BTreeMap<String, String>>;
+    /// The project's manifest, sources and specs, by path, as `target` lays them out.
+    fn read_project(&self, target: Target) -> io::Result<BTreeMap<String, String>>;
     fn print(&self, message: &str);
 }
 
@@ -30,8 +31,8 @@ pub trait Utils {
 pub struct SystemUtils;
 
 impl Utils for SystemUtils {
-    fn read_project(&self) -> io::Result<BTreeMap<String, String>> {
-        fs::read_project()
+    fn read_project(&self, target: Target) -> io::Result<BTreeMap<String, String>> {
+        fs::read_project(target)
     }
 
     fn print(&self, message: &str) {
@@ -61,14 +62,15 @@ impl<U> Inspect<U> {
 
 impl<S, U> Node<S> for Inspect<U>
 where
-    S: HasMessage + Send,
+    S: HasTarget + HasMessage + Send,
     U: Utils + Sync,
 {
     type Outcome = Outcome;
     type Error = Error;
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Error> {
-        let violations = lint(&self.utils.read_project()?);
+        let target = state.target();
+        let violations = lint(target, &self.utils.read_project(target)?);
         for violation in &violations {
             self.utils.print(&violation.to_string());
         }

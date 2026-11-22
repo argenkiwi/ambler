@@ -1,5 +1,6 @@
-//! Running other programs: cargo, rustfmt, amble itself and a coding agent.
+//! Running other programs: the checks, the formatters, amble itself and a coding agent.
 
+use crate::scaffold::target::Target;
 use std::fs::File;
 use std::io;
 use std::process::{Command, Stdio};
@@ -55,14 +56,30 @@ pub fn shell_with(command: &str, argument: &str) -> io::Result<bool> {
         .success())
 }
 
-/// Formats the Rust files at `paths` in place.
+/// Formats `target`'s source files at `paths` in place: rustfmt for Rust, Biome for TypeScript.
 ///
-/// Best effort: generated code is valid without it, so a missing rustfmt is not an error.
-pub fn rustfmt(paths: &[String]) {
-    if !paths.is_empty() {
-        let _ = Command::new("rustfmt")
+/// Best effort: generated code is valid without it, so a missing formatter is not an error.
+/// Biome is only run once `bun install` has put it in `node_modules`.
+pub fn format(target: Target, paths: &[String]) {
+    if paths.is_empty() {
+        return;
+    }
+    let _ = match target {
+        Target::Rust => Command::new("rustfmt")
             .args(["--edition", EDITION])
             .args(paths)
-            .status();
-    }
+            .status(),
+        Target::TypeScript => {
+            let biome = "node_modules/.bin/biome";
+            if !std::path::Path::new(biome).exists() {
+                return;
+            }
+            Command::new(biome)
+                .args(["check", "--write", "--no-errors-on-unmatched"])
+                .args(paths)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+        }
+    };
 }

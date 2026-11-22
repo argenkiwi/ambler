@@ -3,6 +3,7 @@
 use super::State;
 use crate::nodes::guide::{self, Guide};
 use crate::nodes::report::{self, Report};
+use crate::scaffold::target::Target;
 use crate::{Node, Transition, Walk};
 
 /// An unknown verb or topic.
@@ -59,8 +60,8 @@ where
 ///
 /// Returns [`Error`] if there is no such topic; the topics there are have been listed on
 /// standard error.
-pub async fn run(args: Vec<String>) -> Result<(), Error> {
-    let mut state = State::new(args);
+pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
+    let mut state = State::new(target, args);
     Help::new().run(Id::Guide, &mut state).await?;
     state.finish()
 }

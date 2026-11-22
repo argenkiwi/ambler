@@ -1,12 +1,30 @@
 use crate::Node;
-use crate::nodes::{HasArgs, HasMessage, HasPlan};
-use crate::scaffold::project::{is_package_name, project};
-use crate::scaffold::{Plan, args};
+use crate::nodes::{HasArgs, HasMessage, HasPlan, HasTarget};
+use crate::scaffold::rust::project::is_package_name;
+use crate::scaffold::target::Target;
+use crate::scaffold::{Change, Plan, args, rust, ts};
 use crate::utils::fs;
 use std::convert::Infallible;
 use std::io;
 
-const USAGE: &str = "usage: amble new [<name>] [--example]";
+const USAGE: &str = "usage: amble new [<name>] [--example] [--target rust|ts]";
+
+/// Every file of a new `target` project named `package` in `folder`.
+fn project(target: Target, package: &str, folder: &str, example: bool) -> Vec<Change> {
+    match target {
+        Target::Rust => rust::project::project(package, folder, example),
+        Target::TypeScript => ts::project::project(package, folder, example),
+    }
+}
+
+/// What to do once the files are written, `then` being the first step.
+fn next(target: Target, then: &str) -> String {
+    let install = match target {
+        Target::Rust => String::new(),
+        Target::TypeScript => "`bun install`, then ".to_string(),
+    };
+    format!("Next: {then}{install}`amble help` for how to add nodes and walks.")
+}
 
 /// Where [`PlanProject`] leaves the walk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,7 +60,7 @@ impl Utils for SystemUtils {
     }
 }
 
-/// Plans the files of a new project from `<name> [--example]`.
+/// Plans the files of a new project from `<name> [--example]`, in the state's target.
 #[derive(Clone, Debug, Default)]
 pub struct PlanProject<U = SystemUtils> {
     utils: U,
@@ -63,11 +81,11 @@ impl<U> PlanProject<U> {
 }
 
 impl<U: Utils> PlanProject<U> {
-    fn plan(&self, args: &[String]) -> Result<Plan, String> {
+    fn plan(&self, target: Target, args: &[String]) -> Result<Plan, String> {
         let parsed = args::parse(args, &[], &["example"]).map_err(|e| format!("{e}\n{USAGE}"))?;
         let example = parsed.has("example");
         let name = match parsed.positionals.as_slice() {
-            [] => return self.plan_here(example),
+            [] => return self.plan_here(target, example),
             [name] => name,
             _ => return Err(USAGE.to_string()),
         };
@@ -80,16 +98,16 @@ impl<U: Utils> PlanProject<U> {
             return Err(format!("`{name}` already exists"));
         }
         Ok(Plan {
-            changes: project(name, name, example),
+            changes: project(target, name, name, example),
             hint: format!(
-                "Created {name}/. Next: `cd {name}`, then `amble help` for how to add nodes \
-                 and walks."
+                "Created {name}/. {}",
+                next(target, &format!("`cd {name}`, then "))
             ),
         })
     }
 
     /// Plans the project in the current folder, named after it. Only `.git` may be there.
-    fn plan_here(&self, example: bool) -> Result<Plan, String> {
+    fn plan_here(&self, target: Target, example: bool) -> Result<Plan, String> {
         let Some(name) = self.utils.current_folder() else {
             return Err(format!("the current folder has no name\n{USAGE}"));
         };
@@ -110,24 +128,22 @@ impl<U: Utils> PlanProject<U> {
             );
         }
         Ok(Plan {
-            changes: project(&name, "", example),
-            hint: format!(
-                "Created {name} here. Next: `amble help` for how to add nodes and walks."
-            ),
+            changes: project(target, &name, "", example),
+            hint: format!("Created {name} here. {}", next(target, "")),
         })
     }
 }
 
 impl<S, U> Node<S> for PlanProject<U>
 where
-    S: HasArgs + HasPlan + HasMessage + Send,
+    S: HasTarget + HasArgs + HasPlan + HasMessage + Send,
     U: Utils + Sync,
 {
     type Outcome = Outcome;
     type Error = Infallible;
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Infallible> {
-        Ok(match self.plan(state.args()) {
+        Ok(match self.plan(state.target(), state.args()) {
             Ok(plan) => {
                 *state.plan_mut() = plan;
                 Outcome::Planned
@@ -249,6 +265,26 @@ mod tests {
         let (outcome, state) = run(&Fake::default(), &["MyApp"]).await;
         assert_eq!(outcome, Outcome::Rejected);
         assert!(state.message.unwrap().contains("not a package name"));
+    }
+
+    #[tokio::test]
+    async fn plans_a_typescript_project_for_that_target() {
+        let mut state = State::with_target(Target::TypeScript, &["my-app", "--example"]);
+        let Ok(outcome) = PlanProject::with_utils(&Fake::default())
+            .run(&mut state)
+            .await;
+
+        assert_eq!(outcome, Outcome::Planned);
+        let paths: Vec<&str> = state.plan.changes.iter().map(|c| c.path()).collect();
+        assert!(paths.contains(&"my-app/ambler.ts"));
+        assert!(paths.contains(&"my-app/walks/counter.ts"));
+        assert!(!paths.contains(&"my-app/src/engine.rs"));
+        assert!(
+            state
+                .plan
+                .hint
+                .contains("`cd my-app`, then `bun install`, then")
+        );
     }
 
     #[tokio::test]

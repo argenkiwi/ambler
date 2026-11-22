@@ -1,10 +1,11 @@
 use crate::Node;
-use crate::nodes::{HasArgs, HasMessage, HasPlan};
-use crate::scaffold::project::crate_name;
-use crate::scaffold::register::register;
-use crate::scaffold::source::{node_info, state_traits};
-use crate::scaffold::walk::{WalkSpec, parse_edge, runner, spec_md, validate, walk};
-use crate::scaffold::{Change, Plan, args, names};
+use crate::nodes::{HasArgs, HasMessage, HasPlan, HasTarget};
+use crate::scaffold::rust::project::crate_name;
+use crate::scaffold::rust::register::register;
+use crate::scaffold::rust::source::{node_info, state_traits};
+use crate::scaffold::rust::walk::{WalkSpec, parse_edge, runner, spec_md, validate, walk};
+use crate::scaffold::target::Target;
+use crate::scaffold::{Change, Plan, args, names, ts};
 use crate::utils::fs;
 use std::convert::Infallible;
 use std::io;
@@ -68,7 +69,107 @@ impl<U: Utils> PlanWalk<U> {
             .map_err(|_| format!("{path} not found: run this from the root of an Ambler project"))
     }
 
-    fn plan(&self, args: &[String]) -> Result<Plan, String> {
+    fn plan(&self, target: Target, args: &[String]) -> Result<Plan, String> {
+        match target {
+            Target::Rust => self.plan_rust(args),
+            Target::TypeScript => self.plan_ts(args),
+        }
+    }
+
+    fn plan_ts(&self, args: &[String]) -> Result<Plan, String> {
+        let parsed = args::parse(args, &["nodes", "edge"], &["no-runner"])
+            .map_err(|e| format!("{e}\n{USAGE}"))?;
+        let [name] = parsed.positionals.as_slice() else {
+            return Err(USAGE.to_string());
+        };
+        let name = name.replace('-', "_");
+        if !names::is_snake(&name) {
+            return Err(format!(
+                "`{name}` is not a walk name: use snake_case or kebab-case"
+            ));
+        }
+        let nodes: Vec<String> = parsed
+            .list("nodes")
+            .into_iter()
+            .map(|node| node.replace('-', "_"))
+            .collect();
+        if nodes.is_empty() {
+            return Err(format!(
+                "name the nodes to wire, starting node first\n{USAGE}"
+            ));
+        }
+        let edges = parsed
+            .list("edge")
+            .into_iter()
+            .map(parse_edge)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let target = Target::TypeScript;
+        if !self.utils.exists("ambler.ts") {
+            return Err(
+                "ambler.ts not found: run this from the root of an Ambler project".to_string(),
+            );
+        }
+        let path = target.walk_path(&name);
+        if self.utils.exists(&path) {
+            return Err(format!("{path} already exists"));
+        }
+        let missing: Vec<&String> = nodes
+            .iter()
+            .filter(|node| !self.utils.exists(&target.node_path(node)))
+            .collect();
+        if !missing.is_empty() {
+            let commands: Vec<String> = missing
+                .iter()
+                .map(|node| format!("  amble node {node} (--outcomes <a,b> | --terminal)"))
+                .collect();
+            return Err(format!(
+                "these nodes do not exist yet; create them first:\n{}",
+                commands.join("\n")
+            ));
+        }
+        let nodes = nodes
+            .iter()
+            .map(|node| {
+                let path = target.node_path(node);
+                ts::source::node_info(node, &self.read(&path)?).map_err(|e| format!("{path}: {e}"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let spec = ts::walk::WalkSpec::new(&name, nodes, edges);
+        ts::walk::validate(&spec)?;
+        let test_path = target.walk_test_path(&name).unwrap_or_default();
+        let mut changes = vec![
+            Change::source(target, &path, ts::walk::walk(&spec)?),
+            Change::source(target, &test_path, ts::walk::tests(&spec)?),
+        ];
+        let spec_path = format!("specs/{name}.md");
+        if !self.utils.exists(&spec_path) {
+            changes.push(Change::write(spec_path, ts::walk::spec_md(&spec)?));
+        }
+        let mut run_with = format!("`bun {path}`");
+        if !parsed.has("no-runner") {
+            let package = self.read("package.json")?;
+            let script = names::kebab(&name);
+            let package = ts::project::add_script(&package, &name).ok_or_else(|| {
+                format!(
+                    "package.json already has a `{script}` script, or no `scripts`; pass \
+                     `--no-runner` to keep it"
+                )
+            })?;
+            run_with = format!("`bun run {script}`");
+            changes.push(Change::write("package.json", package));
+        }
+        Ok(Plan {
+            changes,
+            hint: format!(
+                "Next: wire any `unwired(…)` edges in {path}, script its test in {test_path}, \
+                 fill in specs/{name}.md, then run it with {run_with}. See `amble help walk`."
+            ),
+        })
+    }
+
+    fn plan_rust(&self, args: &[String]) -> Result<Plan, String> {
         let parsed = args::parse(args, &["nodes", "edge"], &["no-runner"])
             .map_err(|e| format!("{e}\n{USAGE}"))?;
         let [name] = parsed.positionals.as_slice() else {
@@ -167,14 +268,14 @@ impl<U: Utils> PlanWalk<U> {
 
 impl<S, U> Node<S> for PlanWalk<U>
 where
-    S: HasArgs + HasPlan + HasMessage + Send,
+    S: HasTarget + HasArgs + HasPlan + HasMessage + Send,
     U: Utils + Sync,
 {
     type Outcome = Outcome;
     type Error = Infallible;
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Infallible> {
-        Ok(match self.plan(state.args()) {
+        Ok(match self.plan(state.target(), state.args()) {
             Ok(plan) => {
                 *state.plan_mut() = plan;
                 Outcome::Planned
@@ -202,15 +303,15 @@ mod tests {
         ),
         (
             "src/nodes/start.rs",
-            include_str!("../../templates/example/start.rs"),
+            include_str!("../../templates/rust/example/start.rs"),
         ),
         (
             "src/nodes/count.rs",
-            include_str!("../../templates/example/count.rs"),
+            include_str!("../../templates/rust/example/count.rs"),
         ),
         (
             "src/nodes/stop.rs",
-            include_str!("../../templates/example/stop.rs"),
+            include_str!("../../templates/rust/example/stop.rs"),
         ),
     ];
     const ARGS: &[&str] = &[
@@ -305,6 +406,92 @@ mod tests {
         assert_eq!(outcome, Outcome::Planned);
         let paths: Vec<&str> = state.plan.changes.iter().map(Change::path).collect();
         assert_eq!(paths, ["src/walks/counter.rs", MODULES, "specs/counter.md"]);
+    }
+
+    const TS_PROJECT: &[(&str, &str)] = &[
+        ("ambler.ts", ""),
+        (
+            "package.json",
+            include_str!("../../templates/ts/package.json"),
+        ),
+        (
+            "nodes/start.ts",
+            include_str!("../../templates/ts/example/nodes/start.ts"),
+        ),
+        (
+            "nodes/count.ts",
+            include_str!("../../templates/ts/example/nodes/count.ts"),
+        ),
+        (
+            "nodes/stop.ts",
+            include_str!("../../templates/ts/example/nodes/stop.ts"),
+        ),
+    ];
+
+    async fn run_ts(fake: &Fake, args: &[&str]) -> (Outcome, State) {
+        let mut state = State::with_target(Target::TypeScript, args);
+        let Ok(outcome) = PlanWalk::with_utils(fake).run(&mut state).await;
+        (outcome, state)
+    }
+
+    #[tokio::test]
+    async fn plans_a_typescript_walk_its_test_its_spec_and_its_script() {
+        let fake = Fake::with_files(TS_PROJECT);
+
+        let (outcome, state) = run_ts(
+            &fake,
+            &[
+                "my-counter",
+                "--nodes",
+                "start,count,stop",
+                "--edge",
+                "start.success=count",
+            ],
+        )
+        .await;
+
+        assert_eq!(outcome, Outcome::Planned, "{:?}", state.message);
+        let paths: Vec<&str> = state.plan.changes.iter().map(Change::path).collect();
+        assert_eq!(
+            paths,
+            [
+                "walks/my-counter.ts",
+                "walks/tests/my-counter.test.ts",
+                "specs/my_counter.md",
+                "package.json"
+            ]
+        );
+        let walk = contents(&state, "walks/my-counter.ts");
+        assert!(walk.contains("onSuccess: \"COUNT\""));
+        assert!(walk.contains("onStop: unwired(\"COUNT.onStop\")"));
+        assert!(
+            contents(&state, "package.json")
+                .contains("\"my-counter\": \"bun walks/my-counter.ts\"")
+        );
+        assert!(state.plan.hint.contains("`bun run my-counter`"));
+    }
+
+    #[tokio::test]
+    async fn rejects_what_a_typescript_project_does_not_allow() {
+        let fake = Fake::with_files(TS_PROJECT);
+
+        let (_, state) = run_ts(&fake, &["hello", "--nodes", "start,greet"]).await;
+        assert!(state.message.unwrap().contains("amble node greet"));
+
+        let (_, state) = run_ts(
+            &fake,
+            &["hello", "--nodes", "start", "--edge", "start.nope=start"],
+        )
+        .await;
+        assert!(
+            state
+                .message
+                .unwrap()
+                .contains("no such outcome (it has onSuccess, onError)")
+        );
+
+        let (_, state) = run_ts(&Fake::default(), &["hello", "--nodes", "start"]).await;
+        assert!(state.message.unwrap().contains("root of an Ambler project"));
     }
 
     #[tokio::test]

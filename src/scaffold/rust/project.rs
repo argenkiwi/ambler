@@ -1,34 +1,40 @@
-//! The files of a new Ambler project.
+//! The files of a new Rust Ambler project.
 //!
-//! The engine and the agent context files are this repository's own: what `amble new` writes
-//! is what amble itself compiles, tests and follows.
+//! The engine is this repository's own: what `amble new` writes is what amble itself compiles
+//! and tests.
 
 use super::register::{append, register};
-use super::{Change, node, walk};
+use super::{node, walk};
+use crate::scaffold::Change;
+use crate::scaffold::context::{context, within};
 
-const ENGINE: &str = include_str!("../engine.rs");
-/// The always-loaded agent protocol. Also printed by `amble help agents`.
-pub const AGENTS: &str = include_str!("../../AGENTS.md");
-const CLAUDE: &str = include_str!("../../CLAUDE.md");
-/// The one skill that routes Ambler work to this command line.
-pub const SKILL: &str = include_str!("../../.agents/skills/ambler/SKILL.md");
+const ENGINE: &str = include_str!("../../engine.rs");
 
-const CARGO: &str = include_str!("../../templates/Cargo.toml");
-const GITIGNORE: &str = include_str!("../../templates/gitignore");
-const README: &str = include_str!("../../templates/README.md");
-const LIB: &str = include_str!("../../templates/lib.rs");
-const NODES: &str = include_str!("../../templates/nodes_mod.rs");
-const WALKS: &str = include_str!("../../templates/walks_mod.rs");
-const UTILS: &str = include_str!("../../templates/utils_mod.rs");
+const CARGO: &str = include_str!("../../../templates/rust/Cargo.toml");
+const GITIGNORE: &str = include_str!("../../../templates/rust/gitignore");
+const README: &str = include_str!("../../../templates/rust/README.md");
+const LIB: &str = include_str!("../../../templates/rust/lib.rs");
+const NODES: &str = include_str!("../../../templates/rust/nodes_mod.rs");
+const WALKS: &str = include_str!("../../../templates/rust/walks_mod.rs");
+const UTILS: &str = include_str!("../../../templates/rust/utils_mod.rs");
 
 const EXAMPLE_NODES: &[(&str, &str)] = &[
-    ("count", include_str!("../../templates/example/count.rs")),
-    ("start", include_str!("../../templates/example/start.rs")),
-    ("stop", include_str!("../../templates/example/stop.rs")),
+    (
+        "count",
+        include_str!("../../../templates/rust/example/count.rs"),
+    ),
+    (
+        "start",
+        include_str!("../../../templates/rust/example/start.rs"),
+    ),
+    (
+        "stop",
+        include_str!("../../../templates/rust/example/stop.rs"),
+    ),
 ];
-const EXAMPLE_UTIL: &str = include_str!("../../templates/example/terminal.rs");
-const EXAMPLE_WALK: &str = include_str!("../../templates/example/counter.rs");
-const EXAMPLE_SPEC: &str = include_str!("../../templates/example/counter.md");
+const EXAMPLE_UTIL: &str = include_str!("../../../templates/rust/example/terminal.rs");
+const EXAMPLE_WALK: &str = include_str!("../../../templates/rust/example/counter.rs");
+const EXAMPLE_SPEC: &str = include_str!("../../../templates/counter.md");
 
 /// Whether `name` can be a Cargo package name and, with `-` as `_`, a crate name.
 #[must_use]
@@ -61,13 +67,7 @@ fn registered(source: &str, name: &str) -> String {
 /// the counter walk if `example`.
 #[must_use]
 pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
-    let at = |path: &str| {
-        if folder.is_empty() {
-            path.to_string()
-        } else {
-            format!("{folder}/{path}")
-        }
-    };
+    let at = |path: &str| within(folder, path);
     let named = |template: &str| template.replace("{{package}}", package);
     let extra = if example { "rand = \"0.9\"\n" } else { "" };
 
@@ -75,18 +75,10 @@ pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
         Change::write(at("Cargo.toml"), named(CARGO).replace("{{extra}}", extra)),
         Change::write(at(".gitignore"), GITIGNORE),
         Change::write(at("README.md"), named(README)),
-        Change::write(at("AGENTS.md"), AGENTS),
-        Change::write(at("CLAUDE.md"), CLAUDE),
-        Change::write(at(".agents/skills/ambler/SKILL.md"), SKILL),
-        Change::Symlink {
-            path: at(".claude/skills"),
-            target: "../.agents/skills".to_string(),
-        },
         Change::write(at("src/lib.rs"), named(LIB)),
         Change::write(at("src/engine.rs"), ENGINE),
-        // Specs come first in the usual order of work, so their folder is there from the start.
-        Change::write(at("specs/.gitkeep"), ""),
     ];
+    changes.extend(context(folder));
 
     let (mut nodes, mut walks, mut utils) =
         (NODES.to_string(), WALKS.to_string(), UTILS.to_string());

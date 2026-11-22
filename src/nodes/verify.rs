@@ -1,14 +1,7 @@
 use crate::Node;
-use crate::nodes::HasMessage;
+use crate::nodes::{HasMessage, HasTarget};
 use crate::utils::process;
 use std::io;
-
-/// What a project has to pass, in the order it is run.
-const COMMANDS: [&[&str]; 3] = [
-    &["fmt", "--check"],
-    &["clippy", "--all-targets", "--", "-D", "warnings"],
-    &["test"],
-];
 
 /// Where [`Verify`] leaves the walk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -21,13 +14,13 @@ pub enum Outcome {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("could not run cargo: {0}")]
-    Io(#[from] io::Error),
+    #[error("could not run `{program}`: {source}")]
+    Io { program: String, source: io::Error },
 }
 
 pub trait Utils {
-    /// Runs `cargo` with `args` and reports whether it succeeded.
-    fn cargo(&self, args: &[&str]) -> io::Result<bool>;
+    /// Runs `program` with `args` and reports whether it succeeded.
+    fn run(&self, program: &str, args: &[&str]) -> io::Result<bool>;
     fn print(&self, message: &str);
 }
 
@@ -35,8 +28,8 @@ pub trait Utils {
 pub struct SystemUtils;
 
 impl Utils for SystemUtils {
-    fn cargo(&self, args: &[&str]) -> io::Result<bool> {
-        process::run("cargo", args)
+    fn run(&self, program: &str, args: &[&str]) -> io::Result<bool> {
+        process::run(program, args)
     }
 
     fn print(&self, message: &str) {
@@ -44,7 +37,8 @@ impl Utils for SystemUtils {
     }
 }
 
-/// Runs `cargo fmt --check`, clippy with warnings denied and the tests, stopping at a failure.
+/// Runs the target's formatting check, lints and tests (`cargo fmt --check`, clippy and
+/// `cargo test`, or `bun run check`, `lint` and `test`), stopping at a failure.
 #[derive(Clone, Debug, Default)]
 pub struct Verify<U = SystemUtils> {
     utils: U,
@@ -66,17 +60,21 @@ impl<U> Verify<U> {
 
 impl<S, U> Node<S> for Verify<U>
 where
-    S: HasMessage + Send,
+    S: HasTarget + HasMessage + Send,
     U: Utils + Sync,
 {
     type Outcome = Outcome;
     type Error = Error;
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Error> {
-        for args in COMMANDS {
-            let command = format!("cargo {}", args.join(" "));
+        for (program, args) in state.target().checks() {
+            let command = format!("{program} {}", args.join(" "));
             self.utils.print(&format!("$ {command}"));
-            if !self.utils.cargo(args)? {
+            let passed = self.utils.run(program, args).map_err(|source| Error::Io {
+                program: (*program).to_string(),
+                source,
+            })?;
+            if !passed {
                 *state.message_mut() = Some(format!("`{command}` failed"));
                 return Ok(Outcome::Failed);
             }
@@ -136,6 +134,21 @@ mod tests {
 
         let result = Verify::with_utils(&fake).run(&mut State::default()).await;
 
-        assert!(matches!(result, Err(Error::Io(_))));
+        assert!(matches!(result, Err(Error::Io { program, .. }) if program == "cargo"));
+    }
+
+    #[tokio::test]
+    async fn runs_bun_for_a_typescript_project() {
+        let fake = Fake {
+            failing: Some("lint"),
+            ..Fake::default()
+        };
+        let mut state = State::with_target(crate::scaffold::target::Target::TypeScript, &[]);
+
+        let outcome = Verify::with_utils(&fake).run(&mut state).await.unwrap();
+
+        assert_eq!(outcome, Outcome::Failed);
+        assert_eq!(fake.printed(), ["$ bun run check", "$ bun run lint"]);
+        assert_eq!(state.message.as_deref(), Some("`bun run lint` failed"));
     }
 }

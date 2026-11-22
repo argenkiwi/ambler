@@ -1,12 +1,16 @@
 [package]
 name = "amble"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
 description = "Scaffolds and checks Ambler projects"
 
 [dependencies]
+oxc_allocator = "0.75.0"
+oxc_ast = "0.75.0"
+oxc_parser = "0.75.0"
+oxc_span = "0.75.0"
 proc-macro2 = { version = "1", features = ["span-locations"] }
 syn = { version = "2", features = ["full", "visit"] }
 thiserror = "2"

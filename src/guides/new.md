@@ -1,8 +1,8 @@
 # amble new
 
-    amble new [<name>] [--example]
+    amble new [<name>] [--example] [--target rust|ts]
 
-Creates the folder `<name>` with an empty Ambler project. `<name>` is the Cargo package name: lowercase letters, digits, `-` and `_`. Fails if the folder exists.
+Creates the folder `<name>` with an empty Ambler project, in Rust unless `--target ts` (or `AMBLE_TARGET=ts`) asks for TypeScript; `amble help new` inside a TypeScript project describes that one. `<name>` is the Cargo package name: lowercase letters, digits, `-` and `_`. Fails if the folder exists.
 
 Without `<name>`, it makes the current folder the project, named after the folder. The folder must be empty except for `.git`, and its name must be a valid package name.
 

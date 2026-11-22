@@ -1,6 +1,6 @@
 # amble
 
-A command line for coding agents (and people) that scaffolds and checks [Ambler](https://github.com/argenkiwi/ambler-rs) projects: programs built as walks (state machines) of small, tested nodes.
+A command line for coding agents (and people) that scaffolds and checks [Ambler](https://github.com/argenkiwi/ambler-rs) projects: programs built as walks (state machines) of small, tested nodes. Projects are Rust ([ambler-rs](https://github.com/argenkiwi/ambler-rs)) by default, or TypeScript on Bun ([ambler-ts](https://github.com/argenkiwi/ambler-ts)) with `--target ts`.
 
 Ambler is a template, not a library, so every project carries its own copy of the engine and has to follow the same conventions by hand. `amble` does the mechanical part (files in the right place, registration, wiring boilerplate, convention checks) and leaves the design to whoever is building: which outcomes a node has, what its tests prove, where each outcome leads.
 
@@ -33,11 +33,17 @@ amble help [topic]                # the conventions, one guide per topic
 | `node <name> …` | Writes a node's contract (`Outcome`, `Error`, `Utils`, state bounds), a `todo!()` body and one failing test per branch; registers it; declares new `Has*` state traits. |
 | `util <name>` | Writes and registers a utility module. |
 | `walk <name> --nodes … [--edge …]` | Reads the nodes and writes the walk: `State`, `Id`, the exhaustive `step`, `run()`, a wiring-test skeleton, the spec and the runner. Edges not given are left as `todo!()` arms. |
-| `check [--no-cargo]` | Reports each broken convention as `path:line: rule: message`, then runs `cargo fmt --check`, clippy with warnings denied and the tests. |
+| `check [--lint-only]` | Reports each broken convention as `path:line: rule: message`, then runs `cargo fmt --check`, clippy with warnings denied and the tests. |
 | `pave <spec> --agent '<cmd>' …` | Implements a spec by running a coding agent in a loop, one narrow task per run (create or finish a node, wire the walk, repair the check), committing a checkpoint after every passing check. Rolls back and stops if the agent gets stuck. |
 | `help [topic]` | Prints a guide: a verb, or `conventions`, `node-design`, `testing`, `spec`, `agents`. |
 
 Nothing is ever overwritten: a verb fails if a file it would create exists.
+
+## Targets
+
+`amble new my-app --target ts` (or `AMBLE_TARGET=ts amble new my-app`) creates a TypeScript project: `ambler.ts`, `package.json` with Biome and `tsc`, and `nodes/`, `walks/` and `utils/` with tests beside them in `tests/` folders. Run `bun install` in it once.
+
+Inside a project the flag is not needed: every verb works out the target from `--target`, then `AMBLE_TARGET`, then the project's files (`ambler.ts` and `package.json` for TypeScript, `Cargo.toml` and `src/engine.rs` for Rust), and falls back to Rust. The verbs and flags are the same; `amble help` describes the conventions of the project's target, and `amble check` runs `tsc`, Biome and `bun test` instead of cargo.
 
 ## Agents
 
