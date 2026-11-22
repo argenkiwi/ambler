@@ -1,0 +1,90 @@
+name: Check Version Bump
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  check-version-bump:
+    name: Verify Cargo.toml version increased
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Verify version increase
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: |
+          python3 -c '
+          import os, re, subprocess, sys
+
+          def read_version(toml_content):
+              in_package = False
+              for line in toml_content.splitlines():
+                  line = line.strip()
+                  if line.startswith("[") and line.endswith("]"):
+                      in_package = (line == "[package]")
+                  elif in_package and re.match(r"^version\s*=", line):
+                      m = re.search(r"\"([^\"]+)\"", line)
+                      if m:
+                          return m.group(1)
+              return None
+
+          def semver_key(v):
+              v = v.split("+")[0]
+              m = re.match(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$", v)
+              if not m:
+                  raise ValueError(f"Invalid semver: {v}")
+              major, minor, patch, pre = m.groups()
+              major, minor, patch = int(major), int(minor), int(patch)
+              if pre is None:
+                  pre_parts = (1,)
+              else:
+                  parsed_pre = []
+                  for part in pre.split("."):
+                      if part.isdigit():
+                          parsed_pre.append((0, int(part)))
+                      else:
+                          parsed_pre.append((1, part))
+                  pre_parts = (0, tuple(parsed_pre))
+              return (major, minor, patch, pre_parts)
+
+          with open("Cargo.toml", "r", encoding="utf-8") as f:
+              head_content = f.read()
+          head_ver = read_version(head_content)
+          if not head_ver:
+              sys.exit("Error: Could not determine version from head Cargo.toml")
+
+          base_ref = os.environ.get("GITHUB_BASE_REF", "main")
+          try:
+              base_content = subprocess.check_output(
+                  ["git", "show", f"origin/{base_ref}:Cargo.toml"],
+                  stderr=subprocess.PIPE,
+                  text=True,
+              )
+          except subprocess.CalledProcessError:
+              print(f"Base Cargo.toml not found on origin/{base_ref}; skipping comparison.")
+              sys.exit(0)
+
+          base_ver = read_version(base_content)
+          if not base_ver:
+              print(f"No package version found on origin/{base_ref}:Cargo.toml; skipping comparison.")
+              sys.exit(0)
+
+          print(f"Base version ({base_ref}): {base_ver}")
+          print(f"PR version: {head_ver}")
+
+          if semver_key(head_ver) <= semver_key(base_ver):
+              sys.exit(
+                  f"Error: PR version ({head_ver}) must be strictly greater than "
+                  f"target branch version ({base_ver}). Please bump the version in Cargo.toml."
+              )
+
+          print(f"Version check passed: {head_ver} > {base_ver}")
+          '
