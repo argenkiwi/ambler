@@ -69,6 +69,9 @@ where
 /// Returns [`Error`] if the invocation is rejected (the reason is already on standard error) or
 /// a file cannot be written.
 pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
+    if let Some(ok) = crate::utils::runner::delegate(target, "walk", &args)? {
+        return if ok { Ok(()) } else { Err(Error::Failed) };
+    }
     let mut state = State::new(target, args);
     Walk::new().run(Id::PlanWalk, &mut state).await?;
     state.finish()

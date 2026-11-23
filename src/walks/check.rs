@@ -78,6 +78,10 @@ where
 /// Returns [`Error`] if a convention is broken or a check fails (the reason is already printed),
 /// or if the project or a check command cannot be reached.
 pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
+    // Without the project's own runner, `amble check` runs the target's checks itself.
+    if let Some(ok) = crate::utils::runner::delegate_local(target, "check", &args)? {
+        return if ok { Ok(()) } else { Err(Error::Failed) };
+    }
     let lint_only = |arg: &String| arg == "--lint-only" || arg == OLD_SWITCH;
     let checks = !args.iter().any(lint_only);
     let known = args.iter().all(lint_only);

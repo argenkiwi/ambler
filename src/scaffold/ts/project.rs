@@ -8,6 +8,7 @@ use crate::scaffold::{Change, names};
 
 /// The engine every TypeScript project shares.
 pub const ENGINE: &str = include_str!("../../../templates/ts/ambler.ts");
+const CLI: &str = include_str!("../../../templates/ts/cli.ts");
 const PACKAGE: &str = include_str!("../../../templates/ts/package.json");
 const TSCONFIG: &str = include_str!("../../../templates/ts/tsconfig.json");
 const BIOME: &str = include_str!("../../../templates/ts/biome.json");
@@ -117,6 +118,7 @@ pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
         Change::write(at(".gitignore"), GITIGNORE),
         Change::write(at("README.md"), named(README)),
         Change::write(at("ambler.ts"), ENGINE),
+        Change::write(at("cli.ts"), CLI),
     ];
     changes.extend(context(folder));
     if example {

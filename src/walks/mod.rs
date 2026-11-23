@@ -23,6 +23,8 @@ pub enum Error {
     #[error("the command failed")]
     Failed,
     #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
     Write(#[from] write::Error),
     #[error(transparent)]
     Inspect(#[from] inspect::Error),

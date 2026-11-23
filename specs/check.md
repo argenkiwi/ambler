@@ -4,6 +4,8 @@
 
 The walk starts at `INSPECT`. If an argument other than `--lint-only` (or its old name, `--no-cargo`) is given, it starts at `REPORT` with the usage as the reason.
 
+For a Python or TypeScript project, `amble check` first hands the check to the project's own runner (`uv run ambler-cli check`, `bun run ambler check`) when `.venv/bin/ambler-cli` or `cli.ts` exists and `uv`/`bun` is installed. Otherwise it prints how to install it (`uv sync`, `bun install`) and runs the target's checks itself, as below. It never downloads the runner for `check`. `amble node`, `walk` and `util` try `uvx`/`bunx` before falling back to amble's own scaffolding. See `docs/tooling_protocol.md`.
+
 ## Nodes
 
 ### Inspect

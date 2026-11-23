@@ -14,7 +14,15 @@ const EDITION: &str = "2024";
 ///
 /// Returns the I/O error if the program could not be started.
 pub fn run(program: &str, args: &[&str]) -> io::Result<bool> {
-    Ok(Command::new(program).args(args).status()?.success())
+    let status = Command::new(program).args(args).status()?;
+    if status.success() {
+        return Ok(true);
+    }
+    // Pytest returns exit code 5 when no tests are collected (e.g. in a fresh project)
+    if args.last().copied() == Some("pytest") && status.code() == Some(5) {
+        return Ok(true);
+    }
+    Ok(false)
 }
 
 /// Runs this program again with `args` and the environment variables in `env`, writing its
