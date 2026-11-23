@@ -63,8 +63,10 @@ impl<U: Utils> PlanUtil<U> {
         let [name] = parsed.positionals.as_slice() else {
             return Err(USAGE.to_string());
         };
-        if target == Target::TypeScript {
-            return self.plan_ts(&name.replace('-', "_"));
+        match target {
+            Target::TypeScript => return self.plan_ts(&name.replace('-', "_")),
+            Target::Python { .. } => return self.plan_py(target, &name.replace('-', "_")),
+            Target::Rust => {}
         }
         if !names::is_snake(name) {
             return Err(format!("`{name}` is not a module name: use snake_case"));
@@ -113,6 +115,33 @@ impl<U: Utils> PlanUtil<U> {
             hint: format!(
                 "Next: export documented functions from {path} and use them in a node's \
                  `defaultUtils`. See `amble help util`."
+            ),
+        })
+    }
+
+    fn plan_py(&self, target: Target, name: &str) -> Result<Plan, String> {
+        if !names::is_snake(name) {
+            return Err(format!("`{name}` is not a module name: use snake_case"));
+        }
+        if !target.is_project(|path| self.utils.exists(path)) {
+            return Err(
+                "pyproject.toml or the package's engine.py not found: run this from the root of \
+                 an Ambler project"
+                    .to_string(),
+            );
+        }
+        let path = target.util_path(name);
+        if self.utils.exists(&path) {
+            return Err(format!("{path} already exists"));
+        }
+        Ok(Plan {
+            changes: vec![Change::write(
+                &path,
+                "\"\"\"TODO: say what side effects this module wraps.\"\"\"\n",
+            )],
+            hint: format!(
+                "Next: add documented functions to {path} and call them from a node's \
+                 `SystemUtils`. See `amble help util`."
             ),
         })
     }
@@ -167,6 +196,24 @@ mod tests {
             )]
         );
         assert!(state.plan.hint.contains("`defaultUtils`"));
+    }
+
+    #[tokio::test]
+    async fn plans_a_python_module_in_the_package() {
+        let fake = Fake::with_files(&[("pyproject.toml", ""), ("src/app/engine.py", "")]);
+        let mut state = State::with_target(Target::Python { package: "app" }, &["llm-chat"]);
+
+        let Ok(outcome) = PlanUtil::with_utils(&fake).run(&mut state).await;
+
+        assert_eq!(outcome, Outcome::Planned);
+        assert_eq!(
+            state.plan.changes,
+            [Change::write(
+                "src/app/utils/llm_chat.py",
+                "\"\"\"TODO: say what side effects this module wraps.\"\"\"\n"
+            )]
+        );
+        assert!(state.plan.hint.contains("`SystemUtils`"));
     }
 
     #[tokio::test]

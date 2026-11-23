@@ -15,7 +15,12 @@ async fn main() -> ExitCode {
         &verb,
         args.collect(),
         std::env::var(target::VAR).ok(),
-        |path| Path::new(path).exists(),
+        |path| {
+            let path = Path::new(path);
+            // Only `pyproject.toml` is read; other markers only need to exist.
+            path.is_file()
+                .then(|| std::fs::read_to_string(path).unwrap_or_default())
+        },
     );
     let (target, rest): (Target, Vec<String>) = match resolved {
         Ok(resolved) => resolved,

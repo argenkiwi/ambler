@@ -28,12 +28,28 @@ pub const TOPICS: &[&str] = &[
 /// The guide for `topic` in a `target` project, or the general guide for `""`.
 #[must_use]
 pub fn guide(topic: &str, target: Target) -> Option<&'static str> {
-    if target == Target::TypeScript {
-        if let Some(guide) = typescript(topic) {
-            return Some(guide);
-        }
-    }
-    shared(topic)
+    let own = match target {
+        Target::Rust => None,
+        Target::TypeScript => typescript(topic),
+        Target::Python { .. } => python(topic),
+    };
+    own.or_else(|| shared(topic))
+}
+
+/// The guides written for Python projects.
+fn python(topic: &str) -> Option<&'static str> {
+    Some(match topic {
+        "" => include_str!("guides/py/general.md"),
+        "new" => include_str!("guides/py/new.md"),
+        "node" => include_str!("guides/py/node.md"),
+        "util" => include_str!("guides/py/util.md"),
+        "walk" => include_str!("guides/py/walk.md"),
+        "check" => include_str!("guides/py/check.md"),
+        "conventions" => include_str!("guides/py/conventions.md"),
+        "node-design" => include_str!("guides/py/node-design.md"),
+        "testing" => include_str!("guides/py/testing.md"),
+        _ => return None,
+    })
 }
 
 /// The guides written for TypeScript projects.
@@ -122,7 +138,11 @@ mod tests {
     use super::*;
     use crate::scaffold::context::{AGENTS, SKILL};
 
-    const TARGETS: [Target; 2] = [Target::Rust, Target::TypeScript];
+    const TARGETS: [Target; 3] = [
+        Target::Rust,
+        Target::TypeScript,
+        Target::Python { package: "app" },
+    ];
 
     #[test]
     fn every_topic_has_a_guide_titled_after_it_in_every_target() {
@@ -157,6 +177,13 @@ mod tests {
             guide("spec", Target::TypeScript),
             guide("spec", Target::Rust)
         );
+        let python = Target::Python { package: "app" };
+        assert!(
+            guide("node", python)
+                .unwrap()
+                .contains("src/<package>/nodes/<name>.py")
+        );
+        assert_eq!(guide("pave", python), guide("pave", Target::Rust));
     }
 
     #[test]

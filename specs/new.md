@@ -1,6 +1,6 @@
 # Program Specifications
 
-`amble new [<name>] [--example] [--target rust|ts]` creates a new Ambler project in a folder named after it or, without a name, in the current folder. The project is Rust (ambler-rs) unless `--target` or the `AMBLE_TARGET` environment variable says TypeScript (ambler-ts).
+`amble new [<name>] [--example] [--target rust|ts|py]` creates a new Ambler project in a folder named after it or, without a name, in the current folder. The project is Rust (ambler-rs) unless `--target` or the `AMBLE_TARGET` environment variable says TypeScript (ambler-ts) or Python (ambler-py). A Python project's package is its name in snake_case.
 
 ## Nodes
 

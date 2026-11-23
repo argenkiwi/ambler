@@ -5,7 +5,7 @@ use crate::scaffold::rust::register::register;
 use crate::scaffold::rust::source::{node_info, state_traits};
 use crate::scaffold::rust::walk::{WalkSpec, parse_edge, runner, spec_md, validate, walk};
 use crate::scaffold::target::Target;
-use crate::scaffold::{Change, Plan, args, names, ts};
+use crate::scaffold::{Change, Plan, args, names, py, ts};
 use crate::utils::fs;
 use std::convert::Infallible;
 use std::io;
@@ -73,7 +73,108 @@ impl<U: Utils> PlanWalk<U> {
         match target {
             Target::Rust => self.plan_rust(args),
             Target::TypeScript => self.plan_ts(args),
+            Target::Python { .. } => self.plan_py(target, args),
         }
+    }
+
+    fn plan_py(&self, target: Target, args: &[String]) -> Result<Plan, String> {
+        let Target::Python { package } = target else {
+            unreachable!("plan_py is only called for Python");
+        };
+        let parsed = args::parse(args, &["nodes", "edge"], &["no-runner"])
+            .map_err(|e| format!("{e}\n{USAGE}"))?;
+        let [name] = parsed.positionals.as_slice() else {
+            return Err(USAGE.to_string());
+        };
+        let name = name.replace('-', "_");
+        if !names::is_snake(&name) {
+            return Err(format!("`{name}` is not a walk name: use snake_case"));
+        }
+        let nodes: Vec<String> = parsed
+            .list("nodes")
+            .into_iter()
+            .map(|node| node.replace('-', "_"))
+            .collect();
+        if nodes.is_empty() {
+            return Err(format!(
+                "name the nodes to wire, starting node first\n{USAGE}"
+            ));
+        }
+        let edges = parsed
+            .list("edge")
+            .into_iter()
+            .map(parse_edge)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        if !target.is_project(|path| self.utils.exists(path)) {
+            return Err(
+                "pyproject.toml or the package's engine.py not found: run this from the root of \
+                 an Ambler project"
+                    .to_string(),
+            );
+        }
+        let path = target.walk_path(&name);
+        if self.utils.exists(&path) {
+            return Err(format!("{path} already exists"));
+        }
+        let missing: Vec<&String> = nodes
+            .iter()
+            .filter(|node| !self.utils.exists(&target.node_path(node)))
+            .collect();
+        if !missing.is_empty() {
+            let commands: Vec<String> = missing
+                .iter()
+                .map(|node| format!("  amble node {node} (--outcomes <a,b> | --terminal)"))
+                .collect();
+            return Err(format!(
+                "these nodes do not exist yet; create them first:\n{}",
+                commands.join("\n")
+            ));
+        }
+        let init_path = format!("{}/__init__.py", target.nodes_folder());
+        let init = py::source::parse(&self.utils.read(&init_path).unwrap_or_default())
+            .map_err(|(line, error)| format!("{init_path}:{line}: {error}"))?;
+        let nodes = nodes
+            .iter()
+            .map(|node| {
+                let path = target.node_path(node);
+                py::source::node_info(node, &self.read(&path)?, &init)
+                    .map_err(|e| format!("{path}: {e}"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let spec = py::walk::WalkSpec::new(&name, package, nodes, edges);
+        py::walk::validate(&spec)?;
+        let test_path = target.walk_test_path(&name).unwrap_or_default();
+        let mut changes = vec![
+            Change::source(target, &path, py::walk::walk(&spec)?),
+            Change::source(target, &test_path, py::walk::tests(&spec)?),
+        ];
+        let spec_path = format!("specs/{name}.md");
+        if !self.utils.exists(&spec_path) {
+            changes.push(Change::write(spec_path, py::walk::spec_md(&spec)?));
+        }
+        let mut run_with = format!("`{package}.walks.{name}:main`");
+        if !parsed.has("no-runner") {
+            let pyproject = self.read("pyproject.toml")?;
+            let script = names::kebab(&name);
+            let pyproject =
+                py::project::add_script(&pyproject, package, &name).ok_or_else(|| {
+                    format!(
+                        "pyproject.toml already has a `{script}` script, or no `[project]`; pass \
+                     `--no-runner` to keep it"
+                    )
+                })?;
+            run_with = format!("`uv run {script}` (after `uv sync`)");
+            changes.push(Change::write("pyproject.toml", pyproject));
+        }
+        Ok(Plan {
+            changes,
+            hint: format!(
+                "Next: wire any `not yet wired` arms in {path}, script its test in {test_path}, \
+                 fill in specs/{name}.md, then run it with {run_with}. See `amble help walk`."
+            ),
+        })
     }
 
     fn plan_ts(&self, args: &[String]) -> Result<Plan, String> {
@@ -427,6 +528,77 @@ mod tests {
             include_str!("../../templates/ts/example/nodes/stop.ts"),
         ),
     ];
+
+    const PY: Target = Target::Python { package: "app" };
+
+    /// A Python project, package `app`, with the example's nodes and no walk.
+    fn py_project() -> Fake {
+        let mut files = vec![
+            (
+                "pyproject.toml".to_string(),
+                "[project]\nname = \"app\"\n\n[project.scripts]\n\n[build-system]\n".to_string(),
+            ),
+            ("src/app/engine.py".to_string(), String::new()),
+        ];
+        files.extend(
+            crate::scaffold::py::project::example("app")
+                .into_iter()
+                .filter(|(path, _)| path.starts_with("src/app/nodes/")),
+        );
+        let files: Vec<(&str, &str)> = files
+            .iter()
+            .map(|(path, contents)| (path.as_str(), contents.as_str()))
+            .collect();
+        Fake::with_files(&files)
+    }
+
+    async fn run_py(fake: &Fake, args: &[&str]) -> (Outcome, State) {
+        let mut state = State::with_target(PY, args);
+        let Ok(outcome) = PlanWalk::with_utils(fake).run(&mut state).await;
+        (outcome, state)
+    }
+
+    #[tokio::test]
+    async fn plans_a_python_walk_its_test_its_spec_and_its_script() {
+        let fake = py_project();
+
+        let (outcome, state) = run_py(
+            &fake,
+            &[
+                "my-counter",
+                "--nodes",
+                "start,count,stop",
+                "--edge",
+                "start.success=count",
+            ],
+        )
+        .await;
+
+        assert_eq!(outcome, Outcome::Planned, "{:?}", state.message);
+        let paths: Vec<&str> = state.plan.changes.iter().map(Change::path).collect();
+        assert_eq!(
+            paths,
+            [
+                "src/app/walks/my_counter.py",
+                "tests/walks/test_my_counter.py",
+                "specs/my_counter.md",
+                "pyproject.toml"
+            ]
+        );
+        let walk = contents(&state, "src/app/walks/my_counter.py");
+        assert!(walk.contains("from app.engine import Walk\n"));
+        assert!(walk.contains("class MyCounter(Walk[Id, State]):\n"));
+        assert!(walk.contains("not yet wired: COUNT.FINISHED"));
+        assert!(
+            contents(&state, "pyproject.toml")
+                .contains("[project.scripts]\nmy-counter = \"app.walks.my_counter:main\"\n")
+        );
+        assert!(state.plan.hint.contains("`uv run my-counter`"));
+
+        let (outcome, state) = run_py(&fake, &["hello", "--nodes", "start,greet"]).await;
+        assert_eq!(outcome, Outcome::Rejected);
+        assert!(state.message.unwrap().contains("amble node greet"));
+    }
 
     async fn run_ts(fake: &Fake, args: &[&str]) -> (Outcome, State) {
         let mut state = State::with_target(Target::TypeScript, args);

@@ -109,6 +109,23 @@ impl<U: Utils> BriefAgent<U> {
                     .collect();
                 Inventory::ts(&nodes)
             }
+            Target::Python { .. } => {
+                let folder = target.nodes_folder();
+                let mut stems: Vec<String> = self
+                    .utils
+                    .entries(&folder)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(|file| file.strip_suffix(".py").map(str::to_string))
+                    .filter(|stem| stem != "__init__")
+                    .collect();
+                stems.sort();
+                let init = self
+                    .utils
+                    .read(&format!("{folder}/__init__.py"))
+                    .unwrap_or_default();
+                Inventory::py(&init, &stems)
+            }
         }
     }
 

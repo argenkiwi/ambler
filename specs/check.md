@@ -13,7 +13,7 @@ The walk starts at `INSPECT`. If an argument other than `--lint-only` (or its ol
 - If the project cannot be read the program fails with that error.
 
 ### Verify
-- Runs the target's checks in order, printing each command before running it: for Rust the formatting check, clippy with warnings denied and the tests; for TypeScript the type check, Biome's lint and format check, and the tests.
+- Runs the target's checks in order, printing each command before running it: for Rust the formatting check, clippy with warnings denied and the tests; for TypeScript the type check, Biome's lint and format check, and the tests; for Python ruff's format check, ruff's lint, pyright and the tests.
 - If all pass, it terminates.
 - If one fails, it skips the rest, records which and transitions to `REPORT`.
 - If a check command cannot be run the program fails with that error.

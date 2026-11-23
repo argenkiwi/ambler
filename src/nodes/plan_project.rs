@@ -2,18 +2,33 @@ use crate::Node;
 use crate::nodes::{HasArgs, HasMessage, HasPlan, HasTarget};
 use crate::scaffold::rust::project::is_package_name;
 use crate::scaffold::target::Target;
-use crate::scaffold::{Change, Plan, args, rust, ts};
+use crate::scaffold::target::package_of;
+use crate::scaffold::{Change, Plan, args, names, py, rust, ts};
 use crate::utils::fs;
 use std::convert::Infallible;
 use std::io;
 
-const USAGE: &str = "usage: amble new [<name>] [--example] [--target rust|ts]";
+const USAGE: &str = "usage: amble new [<name>] [--example] [--target rust|ts|py]";
 
 /// Every file of a new `target` project named `package` in `folder`.
 fn project(target: Target, package: &str, folder: &str, example: bool) -> Vec<Change> {
     match target {
         Target::Rust => rust::project::project(package, folder, example),
         Target::TypeScript => ts::project::project(package, folder, example),
+        Target::Python { .. } => {
+            py::project::project(package, &package_of(package), folder, example)
+        }
+    }
+}
+
+/// Whether a `target` project can be named `name`, which is already a package name.
+fn check_name(target: Target, name: &str) -> Result<(), String> {
+    match target {
+        Target::Python { .. } if !names::is_snake(&package_of(name)) => Err(format!(
+            "`{name}` cannot be a Python package (`{}` is a keyword): choose another name",
+            package_of(name)
+        )),
+        _ => Ok(()),
     }
 }
 
@@ -22,6 +37,7 @@ fn next(target: Target, then: &str) -> String {
     let install = match target {
         Target::Rust => String::new(),
         Target::TypeScript => "`bun install`, then ".to_string(),
+        Target::Python { .. } => "`uv sync`, then ".to_string(),
     };
     format!("Next: {then}{install}`amble help` for how to add nodes and walks.")
 }
@@ -94,6 +110,7 @@ impl<U: Utils> PlanProject<U> {
                 "`{name}` is not a package name: use lowercase letters, digits, `-` and `_`"
             ));
         }
+        check_name(target, name)?;
         if self.utils.exists(name) {
             return Err(format!("`{name}` already exists"));
         }
@@ -117,6 +134,7 @@ impl<U: Utils> PlanProject<U> {
                  `amble new <name>` to create a subfolder"
             ));
         }
+        check_name(target, &name)?;
         let entries = self
             .utils
             .entries(".")
@@ -284,6 +302,39 @@ mod tests {
                 .plan
                 .hint
                 .contains("`cd my-app`, then `bun install`, then")
+        );
+    }
+
+    #[tokio::test]
+    async fn plans_a_python_project_in_a_package_named_after_it() {
+        let target = Target::Python { package: "" };
+        let mut state = State::with_target(target, &["my-app", "--example"]);
+        let Ok(outcome) = PlanProject::with_utils(&Fake::default())
+            .run(&mut state)
+            .await;
+
+        assert_eq!(outcome, Outcome::Planned);
+        let paths: Vec<&str> = state.plan.changes.iter().map(|c| c.path()).collect();
+        assert!(paths.contains(&"my-app/src/my_app/engine.py"));
+        assert!(paths.contains(&"my-app/src/my_app/walks/counter.py"));
+        assert!(paths.contains(&"my-app/tests/walks/test_counter.py"));
+        assert!(
+            state
+                .plan
+                .hint
+                .contains("`cd my-app`, then `uv sync`, then")
+        );
+
+        let mut state = State::with_target(target, &["import"]);
+        let Ok(outcome) = PlanProject::with_utils(&Fake::default())
+            .run(&mut state)
+            .await;
+        assert_eq!(outcome, Outcome::Rejected);
+        assert!(
+            state
+                .message
+                .unwrap()
+                .contains("cannot be a Python package")
         );
     }
 

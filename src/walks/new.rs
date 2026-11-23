@@ -152,7 +152,7 @@ mod tests {
         assert!(state.finish().is_err());
         assert_eq!(
             fake.eprinted(),
-            ["usage: amble new [<name>] [--example] [--target rust|ts]"]
+            ["usage: amble new [<name>] [--example] [--target rust|ts|py]"]
         );
         assert!(fake.paths().is_empty());
         assert!(fake.printed().is_empty());
@@ -322,6 +322,159 @@ mod tests {
             .status()
             .unwrap();
         assert!(biome.success());
+        assert!(amble(&["check"], &demo), "the finished node and walk fail");
+
+        std::fs::remove_dir_all(&folder).unwrap();
+    }
+
+    /// End to end against the real file system and uv: a Python example project passes `amble
+    /// check` (ruff, pyright, pytest) without `--target`, generated nodes fail their tests with
+    /// `not yet implemented`, and a node and walk added with amble pass once written.
+    #[tokio::test]
+    #[ignore = "slow: syncs and checks a generated project with uv"]
+    async fn a_generated_python_project_passes_its_own_checks() {
+        use std::path::Path;
+        use std::process::Command;
+
+        let folder = std::env::temp_dir().join(format!("amble-e2e-py-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
+        let amble = |args: &[&str], within: &Path| {
+            Command::new("cargo")
+                .args(["run", "--quiet", "--manifest-path", manifest, "--"])
+                .args(args)
+                .current_dir(within)
+                .env_remove(crate::scaffold::target::VAR)
+                .status()
+                .unwrap()
+                .success()
+        };
+        let demo = folder.join("demo-app");
+        let uv = |args: &[&str]| {
+            Command::new("uv")
+                .args(args)
+                .current_dir(&demo)
+                .output()
+                .unwrap()
+        };
+        let write = |path: &str, contents: &str| std::fs::write(demo.join(path), contents).unwrap();
+
+        assert!(amble(
+            &["new", "demo-app", "--example", "--target", "py"],
+            &folder
+        ));
+        assert!(uv(&["sync"]).status.success());
+        assert!(amble(&["check"], &demo), "the example fails its checks");
+
+        assert!(amble(
+            &[
+                "node",
+                "greet",
+                "--outcomes",
+                "done",
+                "--fallible",
+                "--state",
+                "name:str"
+            ],
+            &demo
+        ));
+        assert!(amble(
+            &["node", "bye", "--terminal", "--state", "name"],
+            &demo
+        ));
+        assert!(amble(
+            &[
+                "walk",
+                "hello",
+                "--nodes",
+                "greet,bye",
+                "--edge",
+                "greet.done=bye"
+            ],
+            &demo
+        ));
+        assert!(
+            !amble(&["check", "--lint-only"], &demo),
+            "unfinished code passes"
+        );
+        let red = uv(&["run", "pytest", "tests/nodes/test_greet.py"]);
+        assert!(!red.status.success());
+        assert!(String::from_utf8_lossy(&red.stdout).contains("not yet implemented"));
+
+        write(
+            "src/demo_app/nodes/greet.py",
+            "from dataclasses import dataclass, field\n\
+             from enum import Enum, auto\n\
+             from typing import Protocol\n\n\
+             from demo_app.nodes import HasName\n\n\n\
+             class Outcome(Enum):\n    \"\"\"Where this node leaves the walk.\"\"\"\n\n    \
+                 DONE = auto()\n    \"\"\"Someone was named.\"\"\"\n\n\n\
+             class Error(Exception):\n    \"\"\"Nobody could be named.\"\"\"\n\n\n\
+             class Utils(Protocol):\n    \"\"\"Nothing.\"\"\"\n\n\n\
+             class SystemUtils:\n    \"\"\"Nothing.\"\"\"\n\n\n\
+             @dataclass(frozen=True)\n\
+             class Greet:\n    \"\"\"Names whoever is greeted.\"\"\"\n\n    \
+                 utils: Utils = field(default_factory=SystemUtils)\n\n    \
+                 async def run(self, state: HasName) -> Outcome:\n        \
+                     state.name = \"world\"\n        \
+                     return Outcome.DONE\n",
+        );
+        write(
+            "tests/nodes/test_greet.py",
+            "from dataclasses import dataclass\n\n\
+             from demo_app.nodes.greet import Greet, Outcome\n\n\n\
+             @dataclass\nclass MockState:\n    name: str\n\n\n\
+             class MockUtils:\n    \"\"\"Nothing.\"\"\"\n\n\n\
+             async def test_names_the_world() -> None:\n    \
+                 state = MockState(name=\"\")\n\n    \
+                 assert await Greet(MockUtils()).run(state) == Outcome.DONE\n    \
+                 assert state.name == \"world\"\n",
+        );
+        write(
+            "src/demo_app/nodes/bye.py",
+            "from dataclasses import dataclass, field\n\
+             from typing import Protocol\n\n\
+             from demo_app.nodes import HasName\n\n\n\
+             class Utils(Protocol):\n    def print(self, message: str) -> None: ...\n\n\n\
+             class SystemUtils:\n    def print(self, message: str) -> None:\n        \
+                 print(message)\n\n\n\
+             @dataclass(frozen=True)\n\
+             class Bye:\n    \"\"\"Says goodbye.\"\"\"\n\n    \
+                 utils: Utils = field(default_factory=SystemUtils)\n\n    \
+                 async def run(self, state: HasName) -> None:\n        \
+                     self.utils.print(f\"Bye, {state.name}\")\n",
+        );
+        write(
+            "tests/nodes/test_bye.py",
+            "from dataclasses import dataclass, field\n\n\
+             from demo_app.nodes.bye import Bye\n\n\n\
+             @dataclass\nclass MockState:\n    name: str\n\n\n\
+             @dataclass\nclass MockUtils:\n    \
+                 printed: list[str] = field(default_factory=list[str])\n\n    \
+                 def print(self, message: str) -> None:\n        \
+                     self.printed.append(message)\n\n\n\
+             async def test_says_goodbye() -> None:\n    \
+                 utils = MockUtils()\n\n    \
+                 await Bye(utils).run(MockState(name=\"Ann\"))\n\n    \
+                 assert utils.printed == [\"Bye, Ann\"]\n",
+        );
+        write(
+            "tests/walks/test_hello.py",
+            "from dataclasses import dataclass, field\n\n\
+             from demo_app.nodes.bye import Bye\n\
+             from demo_app.nodes.greet import Greet\n\
+             from demo_app.walks.hello import Hello, Id, State\n\n\n\
+             @dataclass\nclass Script:\n    \
+                 printed: list[str] = field(default_factory=list[str])\n\n    \
+                 def print(self, message: str) -> None:\n        \
+                     self.printed.append(message)\n\n\n\
+             async def test_hello_greets_the_world_and_says_goodbye() -> None:\n    \
+                 script = Script()\n    \
+                 state = State()\n\n    \
+                 await Hello(greet=Greet(script), bye=Bye(script)).run(Id.GREET, state)\n\n    \
+                 assert state.name == \"world\"\n    \
+                 assert script.printed == [\"Bye, world\"]\n",
+        );
         assert!(amble(&["check"], &demo), "the finished node and walk fail");
 
         std::fs::remove_dir_all(&folder).unwrap();

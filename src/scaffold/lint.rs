@@ -3,7 +3,7 @@
 //! `amble help check`.
 
 use super::target::Target;
-use super::{rust, ts};
+use super::{py, rust, ts};
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -46,6 +46,7 @@ pub fn lint(target: Target, files: &BTreeMap<String, String>) -> Vec<Violation> 
     match target {
         Target::Rust => rust::lint::lint(files),
         Target::TypeScript => ts::lint::lint(files),
+        Target::Python { .. } => py::lint::lint(files),
     }
 }
 

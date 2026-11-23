@@ -8,6 +8,7 @@ pub mod context;
 pub mod lint;
 pub mod names;
 pub mod pave;
+pub mod py;
 pub mod rust;
 pub mod target;
 pub mod ts;

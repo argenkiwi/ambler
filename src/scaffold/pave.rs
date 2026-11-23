@@ -4,8 +4,7 @@
 use super::rust::register::declared;
 use super::rust::source::{node_info, state_traits};
 use super::target::Target;
-use super::ts;
-use super::{args, lint, names};
+use super::{args, lint, names, py, ts};
 
 pub const USAGE: &str = "usage: amble pave <spec> [--agent '<command>'] [--max-iterations <n>] \
                          [--max-repairs <n>] [--dry-run]";
@@ -355,14 +354,26 @@ pub fn select_task(
 /// `source`. A TypeScript node lists its edges, `- ask: onAnswered, onInvalid`.
 #[must_use]
 pub fn outcomes_line(target: Target, name: &str, source: &str) -> String {
-    if target == Target::TypeScript {
-        return match ts::source::node_info(name, source) {
-            Ok(info) if info.edges == [ts::node::TERMINAL_EDGE] => {
-                format!("- {name}: terminal (`onDone` ends the walk)")
-            }
-            Ok(info) => format!("- {name}: {}", info.edges.join(", ")),
-            Err(error) => format!("- {name}: could not be read ({error})"),
-        };
+    match target {
+        Target::TypeScript => {
+            return match ts::source::node_info(name, source) {
+                Ok(info) if info.edges == [ts::node::TERMINAL_EDGE] => {
+                    format!("- {name}: terminal (`onDone` ends the walk)")
+                }
+                Ok(info) => format!("- {name}: {}", info.edges.join(", ")),
+                Err(error) => format!("- {name}: could not be read ({error})"),
+            };
+        }
+        Target::Python { .. } => {
+            return match py::source::parse(source) {
+                Ok(module) => match module.class("Outcome") {
+                    Some(outcome) => format!("- {name}: {}", outcome.members.join(", ")),
+                    None => format!("- {name}: terminal (`run` returns `None`)"),
+                },
+                Err((line, error)) => format!("- {name}: could not be read (line {line}: {error})"),
+            };
+        }
+        Target::Rust => {}
     }
     match node_info(name, source) {
         Ok(info) => match info.outcome {
@@ -419,6 +430,29 @@ impl Inventory {
             }
         }
         inventory
+    }
+
+    /// What a Python project's nodes package declares: its `__init__.py` (the state protocols)
+    /// and its node modules, by stem.
+    #[must_use]
+    pub fn py(init: &str, nodes: &[String]) -> Self {
+        let module = py::source::parse(init).unwrap_or_default();
+        Self {
+            nodes: nodes.to_vec(),
+            state: module
+                .classes
+                .iter()
+                .filter(|class| class.has_base("Protocol"))
+                .map(|class| {
+                    let fields: Vec<String> = class
+                        .fields
+                        .iter()
+                        .map(|field| format!("{}: {}", field.name, field.ty))
+                        .collect();
+                    format!("{} ({})", class.name, fields.join(", "))
+                })
+                .collect(),
+        }
     }
 }
 
@@ -498,6 +532,20 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
             "Give `Utils` one function per side effect and implement each in `defaultUtils`.",
             "the factory",
         ),
+        Target::Python { .. } => (
+            format!(
+                "Existing state protocols in {}/__init__.py: {state} (reuse these with `--state \
+                 <field>` instead of redeclaring them)",
+                target.nodes_folder()
+            ),
+            format!(
+                "`amble node {name} (--outcomes <a,b> | --terminal) [--fallible] [--state \
+                 <field>[:<Type>]]...`"
+            ),
+            "Give the `Utils` protocol one method per side effect and implement each in \
+             `SystemUtils`.",
+            "`run`",
+        ),
     };
     format!(
         "You are implementing ONE node of an Ambler project: `{name}` from `{spec_path}`.\n\
@@ -541,6 +589,7 @@ pub fn walk_prompt(brief: &Brief, outcomes: &[String], exists: bool) -> String {
     let unwired = match target {
         Target::Rust => "`todo!(\"wire …\")` arms",
         Target::TypeScript => "`unwired(…)` edges",
+        Target::Python { .. } => "`not yet wired` arms",
     };
     let wire = if exists {
         format!(

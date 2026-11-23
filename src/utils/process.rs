@@ -56,10 +56,12 @@ pub fn shell_with(command: &str, argument: &str) -> io::Result<bool> {
         .success())
 }
 
-/// Formats `target`'s source files at `paths` in place: rustfmt for Rust, Biome for TypeScript.
+/// Formats `target`'s source files at `paths` in place: rustfmt for Rust, Biome for TypeScript,
+/// ruff (imports sorted, then formatted) for Python.
 ///
 /// Best effort: generated code is valid without it, so a missing formatter is not an error.
-/// Biome is only run once `bun install` has put it in `node_modules`.
+/// Biome is only run once `bun install` has put it in `node_modules`, and ruff once `uv sync`
+/// has put it in `.venv`.
 pub fn format(target: Target, paths: &[String]) {
     if paths.is_empty() {
         return;
@@ -80,6 +82,21 @@ pub fn format(target: Target, paths: &[String]) {
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .status()
+        }
+        Target::Python { .. } => {
+            let ruff = ".venv/bin/ruff";
+            if !std::path::Path::new(ruff).exists() {
+                return;
+            }
+            let quiet = |command: &mut Command| {
+                command
+                    .args(paths)
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+            };
+            let _ = quiet(Command::new(ruff).args(["check", "--fix", "--select", "I"]));
+            quiet(Command::new(ruff).arg("format"))
         }
     };
 }

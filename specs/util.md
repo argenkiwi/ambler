@@ -8,6 +8,7 @@
 - Initial node.
 - Reads the module name from the arguments and the registered utilities from the project, and works out the new module file and the utilities module with it registered in alphabetical order.
 - In a TypeScript project it works out only the module file in `utils/`: nothing is registered.
+- In a Python project it works out only the module in the package's `utils/`: nothing is registered.
 - If the name is valid and free, it transitions to `WRITE`.
 - If the name is missing or invalid, the module exists or this is not an Ambler project, it records why and transitions to `REPORT`.
 

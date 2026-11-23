@@ -5,7 +5,7 @@ use crate::scaffold::rust::register::{add_use, append, register};
 use crate::scaffold::rust::source::state_traits;
 use crate::scaffold::target::Target;
 use crate::scaffold::ts::{self, source::Field};
-use crate::scaffold::{Change, Plan, args, names};
+use crate::scaffold::{Change, Plan, args, names, py};
 use crate::utils::fs;
 use std::convert::Infallible;
 use std::io;
@@ -73,6 +73,7 @@ impl<U: Utils> PlanNode<U> {
         match target {
             Target::Rust => self.plan_rust(args),
             Target::TypeScript => self.plan_ts(args),
+            Target::Python { .. } => self.plan_py(target, args),
         }
     }
 
@@ -293,6 +294,172 @@ impl<U: Utils> PlanNode<U> {
                  {test_path}, see them fail with `{}`, then implement the factory. See `amble \
                  help node-design`.",
                 Target::TypeScript.node_test_command(&name)
+            ),
+        })
+    }
+}
+
+/// Node names whose class would clash with a name every node module defines or imports.
+const PY_RESERVED: &[&str] = &[
+    "enum",
+    "error",
+    "mock_state",
+    "mock_utils",
+    "outcome",
+    "protocol",
+    "state",
+    "system_utils",
+    "utils",
+];
+
+impl<U: Utils> PlanNode<U> {
+    fn plan_py(&self, target: Target, args: &[String]) -> Result<Plan, String> {
+        let Target::Python { package } = target else {
+            unreachable!("plan_py is only called for Python");
+        };
+        let parsed = args::parse(args, &["outcomes", "state"], &["terminal", "fallible"])
+            .map_err(|e| format!("{e}\n{USAGE}"))?;
+        let [name] = parsed.positionals.as_slice() else {
+            return Err(USAGE.to_string());
+        };
+        let name = name.replace('-', "_");
+        if !names::is_snake(&name) {
+            return Err(format!("`{name}` is not a node name: use snake_case"));
+        }
+        if PY_RESERVED.contains(&name.as_str()) {
+            return Err(format!(
+                "`{name}` would name the node class `{}`, which every node module already \
+                 defines: choose another name",
+                names::pascal(&name)
+            ));
+        }
+        let terminal = parsed.has("terminal");
+        let outcomes: Vec<String> = parsed
+            .list("outcomes")
+            .into_iter()
+            .map(py::node::outcome_name)
+            .collect();
+        if outcomes.is_empty() != terminal {
+            return Err(format!(
+                "say what the node reports: `--outcomes <a,b>`, or `--terminal` if it ends the \
+                 walk\n{USAGE}"
+            ));
+        }
+        if let Some(outcome) = outcomes
+            .iter()
+            .find(|outcome| !py::node::is_outcome_name(outcome))
+        {
+            return Err(format!("`{outcome}` is not an outcome name"));
+        }
+
+        if !target.is_project(|path| self.utils.exists(path)) {
+            return Err(
+                "pyproject.toml or the package's engine.py not found: run this from the root of \
+                 an Ambler project"
+                    .to_string(),
+            );
+        }
+        let path = target.node_path(&name);
+        let test_path = target.node_test_path(&name).unwrap_or_default();
+        if self.utils.exists(&path) {
+            return Err(format!("{path} already exists"));
+        }
+        let init_path = format!("{}/__init__.py", target.nodes_folder());
+        let mut init = self.utils.read(&init_path).unwrap_or_default();
+
+        // `--state field` reuses a protocol; `--state field:Type` declares a new one.
+        let mut protocols: Vec<String> = Vec::new();
+        for given in parsed.values("state") {
+            let module = py::source::parse(&init)
+                .map_err(|(line, error)| format!("{init_path}:{line}: {error}"))?;
+            let (field, ty) = match given.split_once(':') {
+                Some((field, ty)) => (field.trim(), Some(ty.trim())),
+                None => (given.trim(), None),
+            };
+            if !names::is_snake(field) {
+                return Err(format!("`{field}` is not a field name: use snake_case"));
+            }
+            let wanted = py::node::protocol_name(field);
+            match (module.class(&wanted).is_some(), ty) {
+                (true, None) => {}
+                (true, Some(_)) => {
+                    return Err(format!(
+                        "`{wanted}` is already in {init_path}: use `--state {field}`"
+                    ));
+                }
+                (false, None) => {
+                    return Err(format!(
+                        "no `{wanted}` in {init_path}: give the type, `--state {field}:<Type>`"
+                    ));
+                }
+                (false, Some(ty)) => {
+                    // `my_app.board.Board` is declared as `Board`, imported in __init__.py.
+                    let (short, import) = match ty.rsplit_once('.') {
+                        Some((module, short))
+                            if !ty.contains(['[', '|', ' '])
+                                && module.split('.').all(names::is_snake) =>
+                        {
+                            (short, Some(format!("from {module} import {short}")))
+                        }
+                        _ => (ty, None),
+                    };
+                    py::source::parse(&format!("x: {short}\n"))
+                        .map_err(|_| format!("`{ty}` is not a type"))?;
+                    init = py::node::add_protocol(
+                        &init,
+                        &module,
+                        package,
+                        field,
+                        short,
+                        import.as_deref(),
+                    )
+                    .unwrap_or(init);
+                }
+            }
+            if !protocols.contains(&wanted) {
+                protocols.push(wanted);
+            }
+        }
+        let module = py::source::parse(&init)
+            .map_err(|(line, error)| format!("{init_path}:{line}: {error}"))?;
+        let mut state: Vec<py::source::Field> = Vec::new();
+        let mut imports: Vec<String> = Vec::new();
+        for protocol in &protocols {
+            for field in module.protocol_fields(protocol).unwrap_or_default() {
+                for import in module.imports_for(&field.ty) {
+                    if !imports.contains(&import) {
+                        imports.push(import);
+                    }
+                }
+                if state.iter().all(|known| known.name != field.name) {
+                    state.push(field);
+                }
+            }
+        }
+
+        let spec = py::node::NodeSpec {
+            name: name.clone(),
+            package: package.to_string(),
+            outcomes,
+            fallible: parsed.has("fallible"),
+            protocols,
+            state,
+            imports,
+        };
+        let mut changes = vec![
+            Change::source(target, path, py::node::node(&spec)),
+            Change::source(target, test_path.clone(), py::node::tests(&spec)),
+        ];
+        if self.utils.read(&init_path).ok().as_deref() != Some(init.as_str()) {
+            changes.push(Change::source(target, init_path, init));
+        }
+        Ok(Plan {
+            changes,
+            hint: format!(
+                "Next: give `Utils` a method per side effect (and `SystemUtils` its real one), \
+                 write the tests in {test_path}, see them fail with `{}`, then implement `run`. \
+                 See `amble help node-design`.",
+                target.node_test_command(&name)
             ),
         })
     }
@@ -615,5 +782,127 @@ mod tests {
                 .await
                 .contains("root of an Ambler project")
         );
+    }
+
+    const PY: Target = Target::Python { package: "app" };
+
+    const PY_PROJECT: &[(&str, &str)] = &[
+        ("pyproject.toml", "[project]\nname = \"app\"\n"),
+        ("src/app/engine.py", ""),
+        (
+            "src/app/nodes/__init__.py",
+            include_str!("../../templates/py/example/nodes/__init__.py"),
+        ),
+    ];
+
+    async fn run_py(fake: &Fake, args: &[&str]) -> (Outcome, State) {
+        let mut state = State::with_target(PY, args);
+        let Ok(outcome) = PlanNode::with_utils(fake).run(&mut state).await;
+        (outcome, state)
+    }
+
+    #[tokio::test]
+    async fn plans_a_python_node_its_tests_and_a_new_protocol() {
+        let fake = Fake::with_files(PY_PROJECT);
+
+        let (outcome, state) = run_py(
+            &fake,
+            &[
+                "read-move",
+                "--outcomes",
+                "valid,invalid_input",
+                "--fallible",
+                "--state",
+                "count",
+                "--state",
+                "board:app.board.Board",
+            ],
+        )
+        .await;
+
+        assert_eq!(outcome, Outcome::Planned, "{:?}", state.message);
+        let [node, tests, init] = state.plan.changes.as_slice() else {
+            panic!(
+                "expected the node, its tests and __init__.py: {:?}",
+                state.plan.changes
+            );
+        };
+        assert_eq!(node.path(), "src/app/nodes/read_move.py");
+        assert_eq!(tests.path(), "tests/nodes/test_read_move.py");
+        assert_eq!(init.path(), "src/app/nodes/__init__.py");
+        let contents = |change: &Change| match change {
+            Change::Write {
+                contents, format, ..
+            } => {
+                assert_eq!(*format, Some(PY));
+                contents.clone()
+            }
+            Change::Symlink { .. } => panic!("not a file"),
+        };
+        let node = contents(node);
+        assert!(node.contains("    INVALID_INPUT = auto()\n"));
+        assert!(node.contains("from app.nodes import HasBoard, HasCount\n"));
+        assert!(node.contains("class State(HasCount, HasBoard, Protocol):\n"));
+        assert!(node.contains("class Error(Exception):"));
+        let tests = contents(tests);
+        assert!(tests.contains("from app.board import Board\n"));
+        assert!(tests.contains("    board: Board\n"));
+        assert!(tests.contains("state = MockState(count=0, board=Board())\n"));
+        let init = contents(init);
+        assert!(init.contains("from app.board import Board\n"));
+        assert!(init.ends_with("class HasBoard(Protocol):\n    \"\"\"A state that has a board field.\"\"\"\n\n    board: Board\n"));
+        assert!(
+            state
+                .plan
+                .hint
+                .contains("uv run pytest tests/nodes/test_read_move.py")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_python_node_that_reuses_its_state_leaves_the_protocols_alone() {
+        let fake = Fake::with_files(PY_PROJECT);
+
+        let (outcome, state) = run_py(&fake, &["halt", "--terminal", "--state", "count"]).await;
+
+        assert_eq!(outcome, Outcome::Planned, "{:?}", state.message);
+        assert_eq!(state.plan.changes.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn rejects_what_a_python_project_does_not_allow() {
+        let fake = Fake::with_files(PY_PROJECT);
+        let rejected = |args: &'static [&'static str]| {
+            let fake = &fake;
+            async move {
+                let (outcome, state) = run_py(fake, args).await;
+                assert_eq!(outcome, Outcome::Rejected);
+                state.message.unwrap()
+            }
+        };
+
+        assert!(
+            rejected(&["error", "--terminal"])
+                .await
+                .contains("choose another name")
+        );
+        assert!(
+            rejected(&["ask", "--terminal", "--state", "total"])
+                .await
+                .contains("no `HasTotal`")
+        );
+        assert!(
+            rejected(&["ask", "--terminal", "--state", "count:str"])
+                .await
+                .contains("use `--state count`")
+        );
+        assert!(
+            rejected(&["ask", "--terminal", "--state", "x:list[int"])
+                .await
+                .contains("is not a type")
+        );
+        let (outcome, state) = run_py(&Fake::default(), &["ask", "--terminal"]).await;
+        assert_eq!(outcome, Outcome::Rejected);
+        assert!(state.message.unwrap().contains("root of an Ambler project"));
     }
 }
