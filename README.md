@@ -53,9 +53,9 @@ Inside a project the flag is not needed: every verb works out the target from `-
 
 | Target | CLI | Install |
 |---|---|---|
-| Rust | `cargo ambler` | `cargo install --git https://github.com/argenkiwi/ambler-rs cargo-ambler` |
-| TypeScript | `bun run ambler` | `bun install` in the project (`bunx` fetches it for `node`, `walk` and `util`) |
-| Python | `uv run ambler-cli` | `uv sync` in the project (`uvx` fetches it for `node`, `walk` and `util`) |
+| Rust | `cargo ambler` (an `xtask` crate) | `cargo build` in the project, or `cargo install --git https://github.com/argenkiwi/ambler-rs` |
+| TypeScript | `bun run ambler` | `bun install` in the project, or `bun add -d github:argenkiwi/ambler-ts` (`bunx` fetches it for `node`, `walk` and `util`) |
+| Python | `uv run ambler` | `uv sync` in the project, or `uv add --dev git+https://github.com/argenkiwi/ambler-py` (`uvx` fetches it for `node`, `walk` and `util`) |
 
 ## Agents
 

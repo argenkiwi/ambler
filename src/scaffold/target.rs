@@ -66,7 +66,7 @@ impl Target {
         match self {
             Self::Rust => ("cargo", &["ambler"]),
             Self::TypeScript => ("bun", &["run", "ambler"]),
-            Self::Python { .. } => ("uv", &["run", "ambler-cli"]),
+            Self::Python { .. } => ("uv", &["run", "ambler"]),
         }
     }
 
@@ -79,11 +79,19 @@ impl Target {
         installed: impl Fn(&str) -> bool,
     ) -> bool {
         match self {
-            Self::Rust => installed("cargo") && installed("cargo-ambler"),
-            Self::TypeScript => {
-                (exists("cli.ts") || exists("node_modules/.bin/ambler")) && installed("bun")
+            // An `xtask` crate (with the `cargo ambler` alias) or a globally installed
+            // `cargo-ambler`.
+            Self::Rust => {
+                installed("cargo") && (exists("xtask/Cargo.toml") || installed("cargo-ambler"))
             }
-            Self::Python { .. } => exists(".venv/bin/ambler-cli") && installed("uv"),
+            // `cli.ts` is the CLI that projects made before it became a dependency carry.
+            Self::TypeScript => {
+                (exists("node_modules/.bin/ambler") || exists("cli.ts")) && installed("bun")
+            }
+            // `ambler-cli` is the script of projects made before the CLI became `ambler`.
+            Self::Python { .. } => {
+                (exists(".venv/bin/ambler") || exists(".venv/bin/ambler-cli")) && installed("uv")
+            }
         }
     }
 
@@ -99,7 +107,7 @@ impl Target {
                 &[
                     "--from",
                     "git+https://github.com/argenkiwi/ambler-py",
-                    "ambler-cli",
+                    "ambler",
                 ],
             )),
         }
@@ -361,7 +369,7 @@ mod tests {
         );
         assert_eq!(
             Target::Python { package: "foo" }.native_runner(),
-            ("uv", &["run", "ambler-cli"][..])
+            ("uv", &["run", "ambler"][..])
         );
     }
 

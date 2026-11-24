@@ -8,7 +8,7 @@ Without `<name>`, it makes the current folder the project, named after the folde
 
 It writes:
 
-- `pyproject.toml`: uv_build, strict pyright with `reportMatchNotExhaustive`, ruff's rules, pytest with asyncio, and pinned dev tools; an empty `[project.scripts]` for the walks.
+- `pyproject.toml`: uv_build, strict pyright with `reportMatchNotExhaustive`, ruff's rules, pytest with asyncio, and pinned dev tools, including the Ambler CLI (`ambler-py`, from GitHub, run with `uv run ambler`); an empty `[project.scripts]` for the walks.
 - `src/<package>/engine.py`, the engine, and the `nodes`, `walks` and `utils` packages.
 - `README.md`, `.gitignore`.
 - `AGENTS.md`, `CLAUDE.md` (which imports it) and `.agents/skills/ambler/SKILL.md`, with `.claude/skills` linked to `.agents/skills`. See `ambler help agents`.

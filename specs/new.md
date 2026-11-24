@@ -1,6 +1,6 @@
 # Program Specifications
 
-`ambler new [<name>] [--example] [--target rust|ts|py]` creates a new Ambler project in a folder named after it or, without a name, in the current folder. The project is Rust (ambler-rs) unless `--target` or the `AMBLER_TARGET` environment variable says TypeScript (ambler-ts) or Python (ambler-py). A Python project's package is its name in snake_case.
+`ambler new [<name>] [--example] [--target rust|ts|py]` creates a new Ambler project in a folder named after it or, without a name, in the current folder. The project is Rust (ambler-rs) unless `--target` or the `AMBLER_TARGET` environment variable says TypeScript (ambler-ts) or Python (ambler-py). A Python project's package is its name in snake_case. Every project depends on its target's native CLI (see `delegate.md`) as a dev dependency from GitHub, run as a project script: `ambler-ts` in `package.json`, `ambler-py` in the `dev` group with a `[tool.uv.sources]` entry, and for Rust an `xtask` crate depending on `ambler-rs` behind a `cargo ambler` alias in `.cargo/config.toml`.
 
 ## Nodes
 
