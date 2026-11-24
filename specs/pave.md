@@ -33,7 +33,7 @@
 - Transitions to `CHECK_PROJECT`. If git fails the program fails with that error.
 
 ### Brief Agent
-- Writes a prompt holding only what the task needs, in the target's files, tools and terms: the node's section of the spec and the shared state, the whole spec and each node's outcomes (or edges) for the walk, or the check output and the uncommitted changes for a repair.
+- Writes a prompt holding only what the task needs, in the target's files, tools and terms: the node's section of the spec and the shared state, where the existing state is declared, or the whole spec for the walk, with where to read each node's outcomes; or the check output and the uncommitted changes for a repair.
 - In a dry run it prints the prompt and terminates.
 - Otherwise it runs the agent with the prompt, counts a repair if the check was failing, and transitions to `CHECK_PROJECT`. An agent that exits with an error is noted and the check decides.
 - If a file cannot be read or the agent cannot be started the program fails with that error.

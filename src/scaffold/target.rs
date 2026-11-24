@@ -60,6 +60,51 @@ impl Target {
         std::mem::discriminant(&self) == std::mem::discriminant(&other)
     }
 
+    /// The command prefix that runs this target's native Ambler Tooling Protocol (ATP) CLI.
+    #[must_use]
+    pub fn native_runner(self) -> (&'static str, &'static [&'static str]) {
+        match self {
+            Self::Rust => ("cargo", &["ambler"]),
+            Self::TypeScript => ("bun", &["run", "ambler"]),
+            Self::Python { .. } => ("uv", &["run", "ambler-cli"]),
+        }
+    }
+
+    /// Whether the project in the current folder can run its native CLI: `exists` tells which
+    /// files it has and `installed` which programs are on the `PATH`.
+    #[must_use]
+    pub fn has_native_runner(
+        self,
+        exists: impl Fn(&str) -> bool,
+        installed: impl Fn(&str) -> bool,
+    ) -> bool {
+        match self {
+            Self::Rust => installed("cargo") && installed("cargo-ambler"),
+            Self::TypeScript => {
+                (exists("cli.ts") || exists("node_modules/.bin/ambler")) && installed("bun")
+            }
+            Self::Python { .. } => exists(".venv/bin/ambler-cli") && installed("uv"),
+        }
+    }
+
+    /// The package runner that fetches the native tool when the project has not installed it:
+    /// `uvx` for Python, `bunx` for TypeScript.
+    #[must_use]
+    pub fn global_runner(self) -> Option<(&'static str, &'static [&'static str])> {
+        match self {
+            Self::Rust => None,
+            Self::TypeScript => Some(("bunx", &["github:argenkiwi/ambler-ts"])),
+            Self::Python { .. } => Some((
+                "uvx",
+                &[
+                    "--from",
+                    "git+https://github.com/argenkiwi/ambler-py",
+                    "ambler-cli",
+                ],
+            )),
+        }
+    }
+
     /// The file a node lives in. `name` is `snake_case`.
     #[must_use]
     pub fn node_path(self, name: &str) -> String {
@@ -143,32 +188,6 @@ impl Target {
         }
     }
 
-    /// The commands a project has to pass, in order: program and arguments.
-    #[must_use]
-    pub fn checks(self) -> &'static [(&'static str, &'static [&'static str])] {
-        match self {
-            Self::Rust => &[
-                ("cargo", &["fmt", "--check"]),
-                (
-                    "cargo",
-                    &["clippy", "--all-targets", "--", "-D", "warnings"],
-                ),
-                ("cargo", &["test"]),
-            ],
-            Self::TypeScript => &[
-                ("bun", &["run", "check"]),
-                ("bun", &["run", "lint"]),
-                ("bun", &["run", "test"]),
-            ],
-            Self::Python { .. } => &[
-                ("uv", &["run", "ruff", "format", "--check"]),
-                ("uv", &["run", "ruff", "check"]),
-                ("uv", &["run", "pyright"]),
-                ("uv", &["run", "pytest"]),
-            ],
-        }
-    }
-
     /// How to run one node's tests.
     #[must_use]
     pub fn node_test_command(self, name: &str) -> String {
@@ -188,7 +207,14 @@ impl Target {
             Self::Python { package: "" } => return false,
             Self::Python { .. } => "pyproject.toml",
         };
-        exists(manifest) && exists(&self.engine())
+        exists(manifest)
+            && match self {
+                Self::Python { package } => {
+                    exists(&format!("src/{package}/engine.py"))
+                        || exists(&format!("src/{package}/__init__.py"))
+                }
+                _ => exists(&self.engine()),
+            }
     }
 
     /// The target whose marker files are in the current folder, if any. `read` gives a file's
@@ -324,6 +350,19 @@ mod tests {
             "src/my_app/engine.py" => Some(String::new()),
             _ => None,
         }
+    }
+
+    #[test]
+    fn native_runner_returns_correct_tooling_commands() {
+        assert_eq!(Target::Rust.native_runner(), ("cargo", &["ambler"][..]));
+        assert_eq!(
+            Target::TypeScript.native_runner(),
+            ("bun", &["run", "ambler"][..])
+        );
+        assert_eq!(
+            Target::Python { package: "foo" }.native_runner(),
+            ("uv", &["run", "ambler-cli"][..])
+        );
     }
 
     #[test]

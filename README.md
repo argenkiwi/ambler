@@ -1,8 +1,8 @@
 # amble
 
-A command line for coding agents (and people) that scaffolds and checks [Ambler](https://github.com/argenkiwi/ambler-rs) projects: programs built as walks (state machines) of small, tested nodes. Projects are Rust ([ambler-rs](https://github.com/argenkiwi/ambler-rs)) by default, TypeScript on Bun ([ambler-ts](https://github.com/argenkiwi/ambler-ts)) with `--target ts`, or Python on uv ([ambler-py](https://github.com/argenkiwi/ambler-py)) with `--target py`.
+The common entry point of a command line for coding agents (and people) that scaffolds and checks [Ambler](https://github.com/argenkiwi/ambler-rs) projects: programs built as walks (state machines) of small, tested nodes. Projects are Rust ([ambler-rs](https://github.com/argenkiwi/ambler-rs)) by default, TypeScript on Bun ([ambler-ts](https://github.com/argenkiwi/ambler-ts)) with `--target ts`, or Python on uv ([ambler-py](https://github.com/argenkiwi/ambler-py)) with `--target py`.
 
-Ambler is a template, not a library, so every project carries its own copy of the engine and has to follow the same conventions by hand. `amble` does the mechanical part (files in the right place, registration, wiring boilerplate, convention checks) and leaves the design to whoever is building: which outcomes a node has, what its tests prove, where each outcome leads.
+Ambler is a template, not a library, so every project carries its own copy of the engine and has to follow the same conventions by hand. `amble` itself only does what applies to every target (`new`, `pave`, `help`, working out the target) and hands `node`, `walk`, `util` and `check` to the native CLI of each language, which does the mechanical part (files in the right place, registration, wiring boilerplate, convention checks). The design is left to whoever is building: which outcomes a node has, what its tests prove, where each outcome leads.
 
 ## Install
 
@@ -45,7 +45,17 @@ Nothing is ever overwritten: a verb fails if a file it would create exists.
 
 `amble new my-app --target py` creates a Python project: `pyproject.toml` with strict pyright, ruff and pytest, and a `src/my_app/` package holding `engine.py` and the `nodes`, `walks` and `utils` packages, with tests in `tests/nodes/` and `tests/walks/`. Each walk runs as a `[project.scripts]` entry, `uv run <walk>`. Run `uv sync` in it once.
 
-Inside a project the flag is not needed: every verb works out the target from `--target`, then `AMBLE_TARGET`, then the project's files (`ambler.ts` and `package.json` for TypeScript, `Cargo.toml` and `src/engine.rs` for Rust, `pyproject.toml` and `src/<package>/engine.py` for Python), and falls back to Rust. The verbs and flags are the same; `amble help` describes the conventions of the project's target, and `amble check` runs `tsc`, Biome and `bun test`, or ruff, pyright and pytest, instead of cargo.
+Inside a project the flag is not needed: every verb works out the target from `--target`, then `AMBLE_TARGET`, then the project's files (`ambler.ts` and `package.json` for TypeScript, `Cargo.toml` and `src/engine.rs` for Rust, `pyproject.toml` and `src/<package>/engine.py` for Python), and is Rust if none is found. The verbs and flags are the same; `amble help` describes the conventions of the project's target.
+
+### Native CLIs
+
+`amble node`, `walk`, `util` and `check` run the project's own CLI, as defined by the [Ambler Tooling Protocol](docs/tooling_protocol.md), and end with its exit code. amble has no fallback of its own: if the CLI is missing it says how to install it and exits 2.
+
+| Target | CLI | Install |
+|---|---|---|
+| Rust | `cargo ambler` | `cargo install --git https://github.com/argenkiwi/ambler-rs cargo-ambler` |
+| TypeScript | `bun run ambler` | `bun install` in the project (`bunx` fetches it for `node`, `walk` and `util`) |
+| Python | `uv run ambler-cli` | `uv sync` in the project (`uvx` fetches it for `node`, `walk` and `util`) |
 
 ## Agents
 
@@ -61,9 +71,9 @@ The conventions are written down in one place, the guides compiled into the bina
 ```
 src/engine.rs    Node and Walk traits, Transition; also what `amble new` writes as the engine
 src/main.rs      Runs the walk for the verb
-src/walks/       One walk per verb
-src/nodes/       plan_* nodes decide what to write; write, report, inspect, verify and guide act
-src/scaffold/    Pure text in, text out: generators, the source reader, the linter
+src/walks/       One walk per verb: `delegate` (node, walk, util, check), `new`, `pave`, `help`
+src/nodes/       delegate runs a native CLI; plan_project decides what `new` writes; write, report, guide and the `pave` nodes act
+src/scaffold/    Pure text in, text out: new-project files, the source reader `pave` uses
 src/utils/       File system and process access
 src/guides/      The guides `amble help` prints
 templates/       Static files for new projects, and the counter example

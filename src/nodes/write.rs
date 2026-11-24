@@ -1,8 +1,7 @@
 use crate::Node;
 use crate::nodes::HasPlan;
 use crate::scaffold::Change;
-use crate::scaffold::target::Target;
-use crate::utils::{fs, process};
+use crate::utils::fs;
 use std::io;
 
 #[derive(Debug, thiserror::Error)]
@@ -14,8 +13,6 @@ pub enum Error {
 pub trait Utils {
     fn write(&self, path: &str, contents: &str) -> io::Result<()>;
     fn symlink(&self, path: &str, target: &str) -> io::Result<()>;
-    /// Formats `target`'s source files at `paths` in place, if it can.
-    fn format(&self, target: Target, paths: &[String]);
     fn print(&self, message: &str);
 }
 
@@ -31,16 +28,12 @@ impl Utils for SystemUtils {
         fs::symlink(path, target)
     }
 
-    fn format(&self, target: Target, paths: &[String]) {
-        process::format(target, paths);
-    }
-
     fn print(&self, message: &str) {
         println!("{message}");
     }
 }
 
-/// Applies the plan: writes its files, formats the generated ones and prints what to do next.
+/// Applies the plan: writes its files and prints what to do next.
 /// Terminal: it has no outgoing edges.
 #[derive(Clone, Debug, Default)]
 pub struct Write<U = SystemUtils> {
@@ -71,21 +64,10 @@ where
 
     async fn run(&self, state: &mut S) -> Result<(), Error> {
         let plan = state.plan();
-        let mut generated: Vec<(Target, Vec<String>)> = Vec::new();
         for change in &plan.changes {
             let path = change.path();
             match change {
-                Change::Write {
-                    contents, format, ..
-                } => {
-                    if let Some(target) = *format {
-                        match generated.iter_mut().find(|(known, _)| *known == target) {
-                            Some((_, paths)) => paths.push(path.to_string()),
-                            None => generated.push((target, vec![path.to_string()])),
-                        }
-                    }
-                    self.utils.write(path, contents)
-                }
+                Change::Write { contents, .. } => self.utils.write(path, contents),
                 Change::Symlink { target, .. } => self.utils.symlink(path, target),
             }
             .map_err(|source| Error::Io {
@@ -93,9 +75,6 @@ where
                 source,
             })?;
             self.utils.print(&format!("wrote {path}"));
-        }
-        for (target, paths) in &generated {
-            self.utils.format(*target, paths);
         }
         if !plan.hint.is_empty() {
             self.utils.print(&plan.hint);
@@ -121,11 +100,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn writes_every_change_formats_generated_code_and_prints_the_hint() {
+    async fn writes_every_change_and_prints_the_hint() {
         let fake = Fake::default();
         let mut state = state(
             vec![
-                Change::rust("src/nodes/ask.rs", "pub struct Ask;"),
+                Change::write("src/nodes/ask.rs", "pub struct Ask;"),
                 Change::write("src/nodes/mod.rs", "pub mod ask;\n"),
                 Change::Symlink {
                     path: ".claude/skills".to_string(),
@@ -149,7 +128,6 @@ mod tests {
             fake.file(".claude/skills").as_deref(),
             Some("-> ../.agents/skills")
         );
-        assert_eq!(*fake.formatted.lock().unwrap(), ["src/nodes/ask.rs"]);
         assert_eq!(
             fake.printed(),
             [

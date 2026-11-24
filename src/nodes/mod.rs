@@ -4,16 +4,12 @@ pub mod brief_agent;
 pub mod check_project;
 pub mod checkpoint;
 pub mod choose_task;
+pub mod delegate;
 pub mod guide;
-pub mod inspect;
-pub mod plan_node;
 pub mod plan_pave;
 pub mod plan_project;
-pub mod plan_util;
-pub mod plan_walk;
 pub mod report;
 pub mod roll_back;
-pub mod verify;
 pub mod write;
 
 use crate::scaffold::Plan;
@@ -28,6 +24,17 @@ pub trait HasArgs {
 /// A state that has the language of the project being made or worked on.
 pub trait HasTarget {
     fn target(&self) -> Target;
+}
+
+/// A state that has the verb being handed to the target's native CLI.
+pub trait HasVerb {
+    fn verb(&self) -> &str;
+}
+
+/// A state that has the exit code `amble` ends with.
+pub trait HasExitCode {
+    fn exit_code(&self) -> u8;
+    fn exit_code_mut(&mut self) -> &mut u8;
 }
 
 /// A state that has the changes a verb is about to make.

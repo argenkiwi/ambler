@@ -8,6 +8,7 @@ use crate::scaffold::{Change, names};
 
 /// The engine every Python project shares.
 pub const ENGINE: &str = include_str!("../../../templates/py/engine.py");
+const CLI: &str = include_str!("../../../templates/py/cli.py");
 const PYPROJECT: &str = include_str!("../../../templates/py/pyproject.toml");
 const GITIGNORE: &str = include_str!("../../../templates/py/gitignore");
 const README: &str = include_str!("../../../templates/py/README.md");
@@ -169,6 +170,7 @@ pub fn project(project: &str, package: &str, folder: &str, example: bool) -> Vec
         Change::write(at(".gitignore"), GITIGNORE),
         Change::write(at("README.md"), named(README)),
         Change::write(at(&format!("src/{package}/engine.py")), ENGINE),
+        Change::write(at(&format!("src/{package}/cli.py")), CLI),
         Change::write(at(&format!("src/{package}/py.typed")), ""),
     ];
     changes.extend(context(folder));
@@ -233,7 +235,7 @@ mod tests {
         assert!(contents(&changes, "specs/counter.md").contains("### Start"));
         assert!(
             contents(&changes, "pyproject.toml")
-                .contains("[project.scripts]\ncounter = \"my_app.walks.counter:main\"\n\n")
+                .contains("[project.scripts]\nambler-cli = \"my_app.cli:main\"\ncounter = \"my_app.walks.counter:main\"\n\n")
         );
         assert!(changes.iter().all(|change| !change.path().contains("{{")));
         assert!(
