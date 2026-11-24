@@ -1,8 +1,8 @@
 //! Test doubles shared by the node and walk tests: one fake for every node's `Utils`.
 
 use crate::nodes::{
-    brief_agent, check_project, checkpoint, choose_task, guide, inspect, plan_node, plan_pave,
-    plan_project, plan_util, plan_walk, report, roll_back, verify, write,
+    brief_agent, check_project, checkpoint, choose_task, delegate, guide, plan_pave, plan_project,
+    report, roll_back, write,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::io;
@@ -16,16 +16,16 @@ pub(crate) struct Fake {
     pub files: Mutex<BTreeMap<String, String>>,
     pub printed: Mutex<Vec<String>>,
     pub eprinted: Mutex<Vec<String>>,
-    /// The paths handed to the formatter.
-    pub formatted: Mutex<Vec<String>>,
     /// A path that cannot be written.
     pub unwritable: Option<&'static str>,
-    /// Whether reading the project fails.
-    pub unreadable: bool,
-    /// An argument of the check command that fails (`clippy`, `test`, `lint`), or `"missing"` if
-    /// the checks cannot be run at all. For pave:
-    /// `"check"`, `"git"` or `"agent"` cannot be run, `"agent-exit"` runs and exits 1.
+    /// What cannot be run, for pave: `"check"`, `"git"` or `"agent"` cannot be run, `"agent-exit"` runs and exits 1.
     pub failing: Option<&'static str>,
+    /// The programs on the `PATH`.
+    pub programs: Vec<&'static str>,
+    /// The exit code the native CLI ends with.
+    pub exit: i32,
+    /// The programs run through `delegate`, with their arguments.
+    pub ran: Mutex<Vec<String>>,
     /// The name of the current folder, if it has one.
     pub folder: Option<&'static str>,
     /// The environment variables that are set.
@@ -46,6 +46,23 @@ pub(crate) struct Fake {
 }
 
 impl Fake {
+    /// A fake with `programs` on the `PATH` and `files` in the project.
+    pub fn with_programs(programs: &[&'static str], files: &[(&str, &str)]) -> Self {
+        Self {
+            programs: programs.to_vec(),
+            ..Self::with_files(files)
+        }
+    }
+
+    /// The native CLI ends with `code`.
+    pub fn exiting(self, code: i32) -> Self {
+        Self { exit: code, ..self }
+    }
+
+    pub fn ran(&self) -> Vec<String> {
+        self.ran.lock().unwrap().clone()
+    }
+
     pub fn with_files(files: &[(&str, &str)]) -> Self {
         let files = files
             .iter()
@@ -151,45 +168,12 @@ impl plan_project::Utils for &Fake {
     }
 }
 
-impl plan_node::Utils for &Fake {
-    fn exists(&self, path: &str) -> bool {
-        Fake::exists(self, path)
-    }
-    fn read(&self, path: &str) -> io::Result<String> {
-        Fake::read(self, path)
-    }
-    fn entries(&self, path: &str) -> io::Result<Vec<String>> {
-        plan_project::Utils::entries(self, path)
-    }
-}
-
-impl plan_util::Utils for &Fake {
-    fn exists(&self, path: &str) -> bool {
-        Fake::exists(self, path)
-    }
-    fn read(&self, path: &str) -> io::Result<String> {
-        Fake::read(self, path)
-    }
-}
-
-impl plan_walk::Utils for &Fake {
-    fn exists(&self, path: &str) -> bool {
-        Fake::exists(self, path)
-    }
-    fn read(&self, path: &str) -> io::Result<String> {
-        Fake::read(self, path)
-    }
-}
-
 impl write::Utils for &Fake {
     fn write(&self, path: &str, contents: &str) -> io::Result<()> {
         Fake::write(self, path, contents)
     }
     fn symlink(&self, path: &str, target: &str) -> io::Result<()> {
         Fake::write(self, path, &format!("-> {target}"))
-    }
-    fn format(&self, _target: crate::scaffold::target::Target, paths: &[String]) {
-        self.formatted.lock().unwrap().extend_from_slice(paths);
     }
     fn print(&self, message: &str) {
         Fake::print(self, message);
@@ -314,36 +298,29 @@ impl brief_agent::Utils for &Fake {
     }
 }
 
-impl inspect::Utils for &Fake {
-    fn read_project(
-        &self,
-        _target: crate::scaffold::target::Target,
-    ) -> io::Result<BTreeMap<String, String>> {
-        if self.unreadable {
-            return Err(io::ErrorKind::PermissionDenied.into());
-        }
-        Ok(self.files.lock().unwrap().clone())
-    }
-    fn print(&self, message: &str) {
-        Fake::print(self, message);
-    }
-}
-
-impl verify::Utils for &Fake {
-    fn run(&self, _program: &str, args: &[&str]) -> io::Result<bool> {
-        match self.failing {
-            Some("missing") => Err(io::ErrorKind::NotFound.into()),
-            Some(failing) => Ok(!args.contains(&failing)),
-            None => Ok(true),
-        }
-    }
-    fn print(&self, message: &str) {
-        Fake::print(self, message);
-    }
-}
-
 impl guide::Utils for &Fake {
     fn print(&self, message: &str) {
         Fake::print(self, message);
+    }
+}
+
+impl delegate::Utils for &Fake {
+    fn exists(&self, path: &str) -> bool {
+        Fake::exists(self, path)
+    }
+    fn installed(&self, program: &str) -> bool {
+        self.programs.contains(&program)
+    }
+    fn run(&self, program: &str, args: &[&str]) -> io::Result<i32> {
+        self.ran.lock().unwrap().push(
+            std::iter::once(program)
+                .chain(args.iter().copied())
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        Ok(self.exit)
+    }
+    fn eprint(&self, message: &str) {
+        Fake::eprint(self, message);
     }
 }

@@ -1,7 +1,4 @@
-//! The TypeScript target: ambler-ts projects on Bun, read with oxc and formatted with Biome.
+//! The TypeScript target: the files of a new ambler-ts project, and the reading `amble pave` needs.
 
-pub mod lint;
-pub mod node;
 pub mod project;
 pub mod source;
-pub mod walk;

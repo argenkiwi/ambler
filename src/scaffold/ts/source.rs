@@ -1,6 +1,9 @@
 //! Reads TypeScript sources with oxc: what a module declares and exports, a node's contract
 //! (`State`, `Edge`, `Utils`, `factory`) and a walk's node ids.
 
+/// The edge of a node that ends the walk.
+pub const TERMINAL_EDGE: &str = "onDone";
+
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
     BindingPatternKind, Declaration, ImportDeclarationSpecifier, ImportOrExportKind, ImportPhase,

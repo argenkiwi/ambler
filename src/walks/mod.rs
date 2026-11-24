@@ -1,16 +1,13 @@
 //! Walks: one per verb, each a small state machine of nodes.
 
-pub mod check;
+pub mod delegate;
 pub mod help;
 pub mod new;
-pub mod node;
 pub mod pave;
-pub mod util;
-pub mod walk;
 
 use crate::nodes::{
-    HasArgs, HasMessage, HasPaving, HasPlan, HasTarget, brief_agent, check_project, checkpoint,
-    choose_task, inspect, roll_back, verify, write,
+    HasArgs, HasExitCode, HasMessage, HasPaving, HasPlan, HasTarget, HasVerb, brief_agent,
+    check_project, checkpoint, choose_task, roll_back, write,
 };
 use crate::scaffold::Plan;
 use crate::scaffold::pave::Paving;
@@ -22,14 +19,13 @@ pub enum Error {
     /// The invocation was rejected or a check failed. The walk has already said why.
     #[error("the command failed")]
     Failed,
+    /// The target's native CLI ran and ended with this non-zero exit code, having said why.
+    #[error("the native CLI ended with exit code {0}")]
+    Exit(u8),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Write(#[from] write::Error),
-    #[error(transparent)]
-    Inspect(#[from] inspect::Error),
-    #[error(transparent)]
-    Verify(#[from] verify::Error),
     #[error(transparent)]
     CheckProject(#[from] check_project::Error),
     #[error(transparent)]
@@ -47,7 +43,11 @@ pub enum Error {
 pub(crate) struct State {
     /// The language of the project being made or worked on.
     pub target: Target,
+    /// The verb handed to the native CLI; empty for the verbs amble does itself.
+    pub verb: String,
     pub args: Vec<String>,
+    /// The exit code `amble` ends with when a verb is handed to the native CLI.
+    pub exit_code: u8,
     pub plan: Plan,
     /// The `amble pave` loop; the other verbs leave it at its default.
     pub paving: Paving,
@@ -60,6 +60,14 @@ impl State {
             target,
             args,
             ..Self::default()
+        }
+    }
+
+    #[cfg(test)]
+    pub fn delegating(target: Target, verb: &str, args: &[&str]) -> Self {
+        Self {
+            verb: verb.to_string(),
+            ..Self::with_target(target, args)
         }
     }
 
@@ -97,6 +105,21 @@ impl HasArgs for State {
 impl HasTarget for State {
     fn target(&self) -> Target {
         self.target
+    }
+}
+
+impl HasVerb for State {
+    fn verb(&self) -> &str {
+        &self.verb
+    }
+}
+
+impl HasExitCode for State {
+    fn exit_code(&self) -> u8 {
+        self.exit_code
+    }
+    fn exit_code_mut(&mut self) -> &mut u8 {
+        &mut self.exit_code
     }
 }
 

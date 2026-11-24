@@ -1,8 +1,4 @@
-//! The Python target: ambler-py projects on uv, read with rustpython-parser and formatted with
-//! ruff.
+//! The Python target: the files of a new ambler-py project, and the reading `amble pave` needs.
 
-pub mod lint;
-pub mod node;
 pub mod project;
 pub mod source;
-pub mod walk;

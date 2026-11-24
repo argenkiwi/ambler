@@ -4,7 +4,7 @@
 use super::rust::register::declared;
 use super::rust::source::{node_info, state_traits};
 use super::target::Target;
-use super::{args, lint, names, py, ts};
+use super::{args, names, py, ts};
 
 pub const USAGE: &str = "usage: amble pave <spec> [--agent '<command>'] [--max-iterations <n>] \
                          [--max-repairs <n>] [--dry-run]";
@@ -267,10 +267,25 @@ fn node_name(heading: &str) -> String {
     name.trim_end_matches('_').to_string()
 }
 
+/// The Markdown headings in `text` outside code fences: `(line, heading)`, lines from 1.
+fn headings(text: &str) -> Vec<(usize, &str)> {
+    let mut fenced = false;
+    text.lines()
+        .enumerate()
+        .filter(|(_, line)| {
+            if line.trim_start().starts_with("```") {
+                fenced = !fenced;
+            }
+            !fenced && line.starts_with('#')
+        })
+        .map(|(index, line)| (index + 1, line.trim_end()))
+        .collect()
+}
+
 /// The spec's nodes, in order, from its `###` headings.
 #[must_use]
 pub fn spec_nodes(spec: &str) -> Vec<String> {
-    lint::headings(spec)
+    headings(spec)
         .into_iter()
         .filter_map(|(_, heading)| heading.strip_prefix("### "))
         .map(node_name)
@@ -280,7 +295,7 @@ pub fn spec_nodes(spec: &str) -> Vec<String> {
 /// The lines of `spec` from the heading at `line` (from 1) up to the next heading of `level` or
 /// higher, outside code fences.
 fn section(spec: &str, start: usize, level: usize) -> String {
-    let end = lint::headings(spec)
+    let end = headings(spec)
         .into_iter()
         .find(|(line, heading)| {
             *line > start && heading.chars().take_while(|c| *c == '#').count() <= level
@@ -299,7 +314,7 @@ fn section(spec: &str, start: usize, level: usize) -> String {
 /// The `###` section of the spec that describes the node `name`.
 #[must_use]
 pub fn node_section(spec: &str, name: &str) -> String {
-    lint::headings(spec)
+    headings(spec)
         .into_iter()
         .find(|(_, heading)| {
             heading
@@ -313,7 +328,7 @@ pub fn node_section(spec: &str, name: &str) -> String {
 /// The spec's `## Shared State` section.
 #[must_use]
 pub fn shared_state(spec: &str) -> String {
-    lint::headings(spec)
+    headings(spec)
         .into_iter()
         .find(|(_, heading)| *heading == "## Shared State")
         .map(|(line, _)| section(spec, line, 2))
@@ -357,7 +372,7 @@ pub fn outcomes_line(target: Target, name: &str, source: &str) -> String {
     match target {
         Target::TypeScript => {
             return match ts::source::node_info(name, source) {
-                Ok(info) if info.edges == [ts::node::TERMINAL_EDGE] => {
+                Ok(info) if info.edges == [ts::source::TERMINAL_EDGE] => {
                     format!("- {name}: terminal (`onDone` ends the walk)")
                 }
                 Ok(info) => format!("- {name}: {}", info.edges.join(", ")),

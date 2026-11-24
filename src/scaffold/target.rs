@@ -60,24 +60,30 @@ impl Target {
         std::mem::discriminant(&self) == std::mem::discriminant(&other)
     }
 
-    /// The native command prefix that implements the Ambler Tooling Protocol (ATP) for this target.
-    /// Returns `None` for Rust (handled in-process by amble).
+    /// The command prefix that runs this target's native Ambler Tooling Protocol (ATP) CLI.
     #[must_use]
-    pub fn native_runner(self) -> Option<(&'static str, &'static [&'static str])> {
+    pub fn native_runner(self) -> (&'static str, &'static [&'static str]) {
         match self {
-            Self::Rust => None,
-            Self::TypeScript => Some(("bun", &["run", "ambler"])),
-            Self::Python { .. } => Some(("uv", &["run", "ambler-cli"])),
+            Self::Rust => ("cargo", &["ambler"]),
+            Self::TypeScript => ("bun", &["run", "ambler"]),
+            Self::Python { .. } => ("uv", &["run", "ambler-cli"]),
         }
     }
 
-    /// Checks if the project in the current folder has native Ambler tooling configured.
+    /// Whether the project in the current folder can run its native CLI: `exists` tells which
+    /// files it has and `installed` which programs are on the `PATH`.
     #[must_use]
-    pub fn has_native_runner(self, exists: impl Fn(&str) -> bool) -> bool {
+    pub fn has_native_runner(
+        self,
+        exists: impl Fn(&str) -> bool,
+        installed: impl Fn(&str) -> bool,
+    ) -> bool {
         match self {
-            Self::Rust => false,
-            Self::TypeScript => exists("cli.ts") || exists("node_modules/.bin/ambler"),
-            Self::Python { .. } => exists(".venv/bin/ambler-cli"),
+            Self::Rust => installed("cargo") && installed("cargo-ambler"),
+            Self::TypeScript => {
+                (exists("cli.ts") || exists("node_modules/.bin/ambler")) && installed("bun")
+            }
+            Self::Python { .. } => exists(".venv/bin/ambler-cli") && installed("uv"),
         }
     }
 
@@ -178,32 +184,6 @@ impl Target {
             Self::Python { .. } => &[
                 concat!("not yet ", "implemented"),
                 concat!("not yet ", "wired"),
-            ],
-        }
-    }
-
-    /// The commands a project has to pass, in order: program and arguments.
-    #[must_use]
-    pub fn checks(self) -> &'static [(&'static str, &'static [&'static str])] {
-        match self {
-            Self::Rust => &[
-                ("cargo", &["fmt", "--check"]),
-                (
-                    "cargo",
-                    &["clippy", "--all-targets", "--", "-D", "warnings"],
-                ),
-                ("cargo", &["test"]),
-            ],
-            Self::TypeScript => &[
-                ("bun", &["run", "check"]),
-                ("bun", &["run", "lint"]),
-                ("bun", &["run", "test"]),
-            ],
-            Self::Python { .. } => &[
-                ("uv", &["run", "ruff", "format", "--check"]),
-                ("uv", &["run", "ruff", "check"]),
-                ("uv", &["run", "pyright"]),
-                ("uv", &["run", "pytest"]),
             ],
         }
     }
@@ -374,14 +354,14 @@ mod tests {
 
     #[test]
     fn native_runner_returns_correct_tooling_commands() {
-        assert_eq!(Target::Rust.native_runner(), None);
+        assert_eq!(Target::Rust.native_runner(), ("cargo", &["ambler"][..]));
         assert_eq!(
             Target::TypeScript.native_runner(),
-            Some(("bun", &["run", "ambler"][..]))
+            ("bun", &["run", "ambler"][..])
         );
         assert_eq!(
             Target::Python { package: "foo" }.native_runner(),
-            Some(("uv", &["run", "ambler-cli"][..]))
+            ("uv", &["run", "ambler-cli"][..])
         );
     }
 
