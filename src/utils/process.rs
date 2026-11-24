@@ -1,20 +1,21 @@
-//! Running other programs: the checks, the formatters, amble itself and a coding agent.
+//! Running other programs: a native CLI, amble itself and a coding agent.
 
-use crate::scaffold::target::Target;
 use std::fs::File;
 use std::io;
 use std::process::{Command, Stdio};
 
-/// Edition the generated code is written for.
-const EDITION: &str = "2024";
-
-/// Runs `program` with `args`, sharing this process's terminal, and reports whether it succeeded.
+/// Runs `program` with `args`, sharing this process's terminal, and gives its exit code (1 if it
+/// was ended by a signal).
 ///
 /// # Errors
 ///
 /// Returns the I/O error if the program could not be started.
-pub fn run(program: &str, args: &[&str]) -> io::Result<bool> {
-    Ok(Command::new(program).args(args).status()?.success())
+pub fn run(program: &str, args: &[&str]) -> io::Result<i32> {
+    Ok(Command::new(program)
+        .args(args)
+        .status()?
+        .code()
+        .unwrap_or(1))
 }
 
 /// Runs this program again with `args` and the environment variables in `env`, writing its
@@ -54,32 +55,4 @@ pub fn shell_with(command: &str, argument: &str) -> io::Result<bool> {
         .arg(argument)
         .status()?
         .success())
-}
-
-/// Formats `target`'s source files at `paths` in place: rustfmt for Rust, Biome for TypeScript.
-///
-/// Best effort: generated code is valid without it, so a missing formatter is not an error.
-/// Biome is only run once `bun install` has put it in `node_modules`.
-pub fn format(target: Target, paths: &[String]) {
-    if paths.is_empty() {
-        return;
-    }
-    let _ = match target {
-        Target::Rust => Command::new("rustfmt")
-            .args(["--edition", EDITION])
-            .args(paths)
-            .status(),
-        Target::TypeScript => {
-            let biome = "node_modules/.bin/biome";
-            if !std::path::Path::new(biome).exists() {
-                return;
-            }
-            Command::new(biome)
-                .args(["check", "--write", "--no-errors-on-unmatched"])
-                .args(paths)
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-        }
-    };
 }

@@ -77,7 +77,8 @@ fn create_parent(path: &str) -> io::Result<()> {
 
 /// The files `amble check` looks at, keyed by `/`-separated path: every `.md` under `specs/`
 /// and, for Rust, `Cargo.toml` and every `.rs` under `src/`; for TypeScript, `package.json`,
-/// `ambler.ts` and every `.ts` under `nodes/`, `walks/` and `utils/`.
+/// `ambler.ts` and every `.ts` under `nodes/`, `walks/` and `utils/`. Python: `pyproject.toml`
+/// and every `.py` under `src/` and `tests/`.
 ///
 /// Files and folders that do not exist are skipped: it is the linter's job to say what is
 /// missing.
@@ -94,6 +95,7 @@ pub fn read_project(target: Target) -> io::Result<BTreeMap<String, String>> {
             &["nodes", "walks", "utils"],
             "ts",
         ),
+        Target::Python { .. } => (&["pyproject.toml"], &["src", "tests"], "py"),
     };
     for root in roots {
         if exists(root) {

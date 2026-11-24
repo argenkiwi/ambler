@@ -1,11 +1,8 @@
 //! What `amble pave` decides and says: the settings, the next task, the guards that bound the
 //! loop and the prompt for each task. No I/O: the nodes read the files and pass them in.
 
-use super::rust::register::declared;
-use super::rust::source::{node_info, state_traits};
 use super::target::Target;
-use super::ts;
-use super::{args, lint, names};
+use super::{args, names};
 
 pub const USAGE: &str = "usage: amble pave <spec> [--agent '<command>'] [--max-iterations <n>] \
                          [--max-repairs <n>] [--dry-run]";
@@ -268,10 +265,25 @@ fn node_name(heading: &str) -> String {
     name.trim_end_matches('_').to_string()
 }
 
+/// The Markdown headings in `text` outside code fences: `(line, heading)`, lines from 1.
+fn headings(text: &str) -> Vec<(usize, &str)> {
+    let mut fenced = false;
+    text.lines()
+        .enumerate()
+        .filter(|(_, line)| {
+            if line.trim_start().starts_with("```") {
+                fenced = !fenced;
+            }
+            !fenced && line.starts_with('#')
+        })
+        .map(|(index, line)| (index + 1, line.trim_end()))
+        .collect()
+}
+
 /// The spec's nodes, in order, from its `###` headings.
 #[must_use]
 pub fn spec_nodes(spec: &str) -> Vec<String> {
-    lint::headings(spec)
+    headings(spec)
         .into_iter()
         .filter_map(|(_, heading)| heading.strip_prefix("### "))
         .map(node_name)
@@ -281,7 +293,7 @@ pub fn spec_nodes(spec: &str) -> Vec<String> {
 /// The lines of `spec` from the heading at `line` (from 1) up to the next heading of `level` or
 /// higher, outside code fences.
 fn section(spec: &str, start: usize, level: usize) -> String {
-    let end = lint::headings(spec)
+    let end = headings(spec)
         .into_iter()
         .find(|(line, heading)| {
             *line > start && heading.chars().take_while(|c| *c == '#').count() <= level
@@ -300,7 +312,7 @@ fn section(spec: &str, start: usize, level: usize) -> String {
 /// The `###` section of the spec that describes the node `name`.
 #[must_use]
 pub fn node_section(spec: &str, name: &str) -> String {
-    lint::headings(spec)
+    headings(spec)
         .into_iter()
         .find(|(_, heading)| {
             heading
@@ -314,7 +326,7 @@ pub fn node_section(spec: &str, name: &str) -> String {
 /// The spec's `## Shared State` section.
 #[must_use]
 pub fn shared_state(spec: &str) -> String {
-    lint::headings(spec)
+    headings(spec)
         .into_iter()
         .find(|(_, heading)| *heading == "## Shared State")
         .map(|(line, _)| section(spec, line, 2))
@@ -351,84 +363,12 @@ pub fn select_task(
     }
 }
 
-/// `- ask: Answered, Invalid`, or `- stop: terminal (no outcomes)`, for the `target` node in
-/// `source`. A TypeScript node lists its edges, `- ask: onAnswered, onInvalid`.
-#[must_use]
-pub fn outcomes_line(target: Target, name: &str, source: &str) -> String {
-    if target == Target::TypeScript {
-        return match ts::source::node_info(name, source) {
-            Ok(info) if info.edges == [ts::node::TERMINAL_EDGE] => {
-                format!("- {name}: terminal (`onDone` ends the walk)")
-            }
-            Ok(info) => format!("- {name}: {}", info.edges.join(", ")),
-            Err(error) => format!("- {name}: could not be read ({error})"),
-        };
-    }
-    match node_info(name, source) {
-        Ok(info) => match info.outcome {
-            None => format!("- {name}: terminal (no outcomes)"),
-            Some(outcome) => {
-                let variants: Vec<String> = outcome.variants.into_iter().map(|v| v.name).collect();
-                format!("- {name}: {}", variants.join(", "))
-            }
-        },
-        Err(error) => format!("- {name}: could not be read ({error})"),
-    }
-}
-
-/// The nodes a project has, and the state they share: the `Has*` traits of a Rust project,
-/// the `State` fields (`name: type`) of a TypeScript one.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Inventory {
-    pub nodes: Vec<String>,
-    pub state: Vec<String>,
-}
-
-impl Inventory {
-    /// What a Rust project's `src/nodes/mod.rs` declares.
-    #[must_use]
-    pub fn rust(modules: &str) -> Self {
-        Self {
-            nodes: modules
-                .lines()
-                .filter_map(declared)
-                .map(str::to_string)
-                .collect(),
-            state: state_traits(modules)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|item| item.name)
-                .collect(),
-        }
-    }
-
-    /// What a TypeScript project's node files declare: `(file stem, contents)`.
-    #[must_use]
-    pub fn ts(nodes: &[(String, String)]) -> Self {
-        let mut inventory = Self::default();
-        for (stem, source) in nodes {
-            inventory.nodes.push(stem.replace('-', "_"));
-            let Ok(module) = ts::source::parse(source) else {
-                continue;
-            };
-            for field in module.object("State").unwrap_or_default() {
-                let described = format!("{}: {}", field.name, field.ty);
-                if !inventory.state.contains(&described) {
-                    inventory.state.push(described);
-                }
-            }
-        }
-        inventory
-    }
-}
-
 /// What every prompt may draw on.
 #[derive(Clone, Copy, Debug)]
 pub struct Brief<'a> {
     pub settings: &'a Settings,
     /// The contents of the spec.
     pub spec: &'a str,
-    pub inventory: &'a Inventory,
     /// Whether the last check passed, and the end of its output.
     pub passed: bool,
     pub output: &'a str,
@@ -445,14 +385,6 @@ impl Brief<'_> {
             )
         }
     }
-
-    fn list(items: Vec<String>) -> String {
-        if items.is_empty() {
-            "none".to_string()
-        } else {
-            items.join(", ")
-        }
-    }
 }
 
 /// The prompt to create or finish the node `name`. `exists` says whether its file does.
@@ -463,8 +395,6 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
     let path = target.node_path(name);
     let test = target.node_test_command(name);
     let engine = target.engine();
-    let nodes = Brief::list(brief.inventory.nodes.clone());
-    let state = Brief::list(brief.inventory.state.clone());
     let file = if exists {
         format!(
             "`{path}` already exists (an earlier run was interrupted). Do NOT run `amble node` \
@@ -475,10 +405,9 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
     };
     let (known, create, utils, implement) = match target {
         Target::Rust => (
-            format!(
-                "Existing state traits in src/nodes/mod.rs: {state} (reuse these with `--state \
-                 <field>` instead of redeclaring them)"
-            ),
+            "src/nodes/mod.rs declares the state traits that exist: read it, and reuse them with \
+             `--state <field>` instead of redeclaring them"
+                .to_string(),
             format!(
                 "`amble node {name} (--outcomes <a,b> | --terminal) [--fallible] [--state \
                  <field>[:<Type>]]...`"
@@ -487,16 +416,29 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
             "`run`",
         ),
         Target::TypeScript => (
-            format!(
-                "Existing state fields in nodes/: {state} (reuse these with `--state <field>`, \
-                 which takes the same type)"
-            ),
+            "the nodes in nodes/ declare the state fields that exist in their `State`: read them, \
+             and reuse a field with `--state <field>`, which takes the same type"
+                .to_string(),
             format!(
                 "`amble node {name} (--outcomes <a,b> | --terminal) [--state \
                  <field>[:<Type>]]...`"
             ),
             "Give `Utils` one function per side effect and implement each in `defaultUtils`.",
             "the factory",
+        ),
+        Target::Python { .. } => (
+            format!(
+                "{}/__init__.py declares the state protocols that exist: read it, and reuse them \
+                 with `--state <field>` instead of redeclaring them",
+                target.nodes_folder()
+            ),
+            format!(
+                "`amble node {name} (--outcomes <a,b> | --terminal) [--fallible] [--state \
+                 <field>[:<Type>]]...`"
+            ),
+            "Give the `Utils` protocol one method per side effect and implement each in \
+             `SystemUtils`.",
+            "`run`",
         ),
     };
     format!(
@@ -510,8 +452,7 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
          {shared}\n\
          \n\
          ## Current project\n\
-         - Existing nodes: {nodes}\n\
-         - {known}\n\
+         - Shared state: {known}\n\
          - {file}\n\
          \n\
          ## Steps\n\
@@ -530,10 +471,9 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
     )
 }
 
-/// The prompt to wire the walk. `outcomes` has one [`outcomes_line`] per node; `exists` says
-/// whether the walk's file does.
+/// The prompt to wire the walk. `exists` says whether the walk's file does.
 #[must_use]
-pub fn walk_prompt(brief: &Brief, outcomes: &[String], exists: bool) -> String {
+pub fn walk_prompt(brief: &Brief, exists: bool) -> String {
     let Settings { spec, target, .. } = brief.settings;
     let spec_path = brief.settings.spec_path();
     let walk_path = brief.settings.walk_path();
@@ -541,6 +481,7 @@ pub fn walk_prompt(brief: &Brief, outcomes: &[String], exists: bool) -> String {
     let unwired = match target {
         Target::Rust => "`todo!(\"wire …\")` arms",
         Target::TypeScript => "`unwired(…)` edges",
+        Target::Python { .. } => "`not yet wired` arms",
     };
     let wire = if exists {
         format!(
@@ -549,8 +490,8 @@ pub fn walk_prompt(brief: &Brief, outcomes: &[String], exists: bool) -> String {
         )
     } else {
         format!(
-            "Run `amble walk {spec} --nodes {nodes} --edge <node>.<Outcome>=<node|halt> ...`, \
-             with one --edge per transition in the spec (a terminal node needs none).",
+            "Run `amble walk {spec} --nodes {nodes}`. It wires the nodes and leaves each \
+             transition to wire as {unwired}: replace them following the spec's transitions.",
             nodes = spec_nodes(brief.spec).join(","),
         )
     };
@@ -561,11 +502,8 @@ pub fn walk_prompt(brief: &Brief, outcomes: &[String], exists: bool) -> String {
          ## The spec\n\
          {text}\n\
          \n\
-         ## Node outcomes (from {folder}/)\n\
-         {outcomes}\n\
-         \n\
          ## Steps\n\
-         1. Run `amble help walk`.\n\
+         1. Run `amble help walk`, and read each node in `{folder}/` for the outcomes it reports.\n\
          2. {wire}\n\
          3. Finish the wiring test in `{test_path}` so it walks the main paths of the spec.\n\
          4. Keep `{spec_path}` true: its `###` headings must match the walk's nodes.\n\
@@ -573,7 +511,6 @@ pub fn walk_prompt(brief: &Brief, outcomes: &[String], exists: bool) -> String {
          {output}",
         text = brief.spec.trim_end(),
         folder = target.nodes_folder(),
-        outcomes = outcomes.join("\n"),
         output = brief.check_output(),
     )
 }
@@ -626,10 +563,6 @@ mod tests {
                         \n\
                         The shared state consists of:\n\
                         - `board`: the cells.\n";
-
-    const MODULES: &str = "//! Nodes.\n\npub mod read_move;\n\n\
-                           pub trait HasBoard {\n    fn board(&self) -> &Vec<u8>;\n    \
-                           fn board_mut(&mut self) -> &mut Vec<u8>;\n}\n";
 
     fn args(args: &[&str]) -> Vec<String> {
         args.iter().map(ToString::to_string).collect()
@@ -882,45 +815,10 @@ mod tests {
         assert_eq!(tail("", 5), "");
     }
 
-    const NODE: &str = "use crate::Node;\n\
-                        pub enum Outcome { Valid, Rejected(String) }\n\
-                        pub struct ReadMove;\n\
-                        impl<S: Send> Node<S> for ReadMove {\n    \
-                            type Outcome = Outcome;\n    \
-                            type Error = std::convert::Infallible;\n    \
-                            async fn run(&self, _: &mut S) -> Result<Outcome, Self::Error> \
-                            { Ok(Outcome::Valid) }\n\
-                        }\n";
-
-    #[test]
-    fn lists_a_nodes_outcomes() {
-        assert_eq!(
-            outcomes_line(Target::Rust, "read_move", NODE),
-            "- read_move: Valid, Rejected"
-        );
-        let terminal = NODE.replace("type Outcome = Outcome;", "type Outcome = ();");
-        assert_eq!(
-            outcomes_line(Target::Rust, "read_move", &terminal),
-            "- read_move: terminal (no outcomes)"
-        );
-        assert!(outcomes_line(Target::Rust, "x", "fn x() {}").contains("could not be read"));
-        let count = include_str!("../../templates/ts/example/nodes/count.ts");
-        assert_eq!(
-            outcomes_line(Target::TypeScript, "count", count),
-            "- count: onCount, onStop"
-        );
-        let stop = include_str!("../../templates/ts/example/nodes/stop.ts");
-        assert_eq!(
-            outcomes_line(Target::TypeScript, "stop", stop),
-            "- stop: terminal (`onDone` ends the walk)"
-        );
-    }
-
-    fn brief<'a>(settings: &'a Settings, inventory: &'a Inventory, passed: bool) -> Brief<'a> {
+    fn brief(settings: &Settings, passed: bool) -> Brief<'_> {
         Brief {
             settings,
             spec: SPEC,
-            inventory,
             passed,
             output: "src/nodes/report.rs:3: todo: finish it\n`cargo test` failed",
         }
@@ -929,16 +827,14 @@ mod tests {
     #[test]
     fn a_node_prompt_holds_only_its_section_the_state_and_the_project() {
         let settings = settings_for("game");
-        let inventory = Inventory::rust(MODULES);
 
-        let prompt = node_prompt(&brief(&settings, &inventory, true), "report", false);
+        let prompt = node_prompt(&brief(&settings, true), "report", false);
 
         assert!(prompt.contains("`report` from `specs/game.md`"));
         assert!(prompt.contains("### Report\n- Prints the board"));
         assert!(!prompt.contains("### Read Move"));
         assert!(prompt.contains("- `board`: the cells."));
-        assert!(prompt.contains("Existing nodes: read_move\n"));
-        assert!(prompt.contains("Existing state traits in src/nodes/mod.rs: HasBoard "));
+        assert!(prompt.contains("Shared state: src/nodes/mod.rs declares the state traits"));
         assert!(prompt.contains("does not exist yet"));
         assert!(prompt.contains("`amble node report (--outcomes"));
         assert!(prompt.contains("`cargo test nodes::report::`"));
@@ -951,21 +847,16 @@ mod tests {
             target: Target::TypeScript,
             ..settings_for("game")
         };
-        let inventory = Inventory::ts(&[(
-            "read-move".to_string(),
-            "export interface State {\n  board: string[];\n}\n".to_string(),
-        )]);
-        let brief = brief(&settings, &inventory, false);
+        let brief = brief(&settings, false);
 
         let node = node_prompt(&brief, "report", false);
         assert!(node.contains("do not touch `ambler.ts`"));
-        assert!(node.contains("Existing nodes: read_move\n"));
-        assert!(node.contains("Existing state fields in nodes/: board: string[] "));
+        assert!(node.contains("the nodes in nodes/ declare the state fields"));
         assert!(node.contains("`nodes/report.ts` does not exist yet."));
         assert!(node.contains("`bun test nodes/tests/report.test.ts`"));
         assert!(!node.contains("--fallible"));
 
-        let walk = walk_prompt(&brief, &[], true);
+        let walk = walk_prompt(&brief, true);
         assert!(walk.contains("`unwired(…)` edges"));
         assert!(walk.contains("wiring test in `walks/tests/game.test.ts`"));
         assert!(repair_prompt(&brief, "").contains("do not touch `ambler.ts`"));
@@ -974,27 +865,25 @@ mod tests {
     #[test]
     fn a_node_prompt_resumes_and_carries_a_failing_check() {
         let settings = settings_for("game");
-        let inventory = Inventory::rust(MODULES);
 
-        let prompt = node_prompt(&brief(&settings, &inventory, false), "report", true);
+        let prompt = node_prompt(&brief(&settings, false), "report", true);
 
         assert!(prompt.contains("Do NOT run `amble node` again"));
         assert!(prompt.contains("## Last `amble check` output\n```\nsrc/nodes/report.rs:3"));
     }
 
     #[test]
-    fn a_walk_prompt_fills_in_the_nodes_and_lists_their_outcomes() {
+    fn a_walk_prompt_wires_the_nodes_and_sends_the_agent_to_their_files() {
         let settings = settings_for("game");
-        let inventory = Inventory::rust(MODULES);
-        let outcomes = ["- read_move: Valid".to_string()];
 
-        let prompt = walk_prompt(&brief(&settings, &inventory, true), &outcomes, false);
+        let prompt = walk_prompt(&brief(&settings, true), false);
 
         assert!(prompt.contains("## The spec\n# Program Specifications"));
-        assert!(prompt.contains("- read_move: Valid\n"));
-        assert!(prompt.contains("`amble walk game --nodes read_move,report --edge"));
+        assert!(prompt.contains("read each node in `src/nodes/`"));
+        assert!(prompt.contains("`amble walk game --nodes read_move,report`"));
+        assert!(!prompt.contains("--edge"));
 
-        let resumed = walk_prompt(&brief(&settings, &inventory, false), &outcomes, true);
+        let resumed = walk_prompt(&brief(&settings, false), true);
         assert!(resumed.contains("Do NOT run `amble walk` again"));
         assert!(resumed.contains("`cargo test` failed"));
     }
@@ -1002,12 +891,8 @@ mod tests {
     #[test]
     fn a_repair_prompt_holds_the_check_output_and_the_changes() {
         let settings = settings_for("game");
-        let inventory = Inventory::rust(MODULES);
 
-        let prompt = repair_prompt(
-            &brief(&settings, &inventory, false),
-            " M src/nodes/report.rs\n",
-        );
+        let prompt = repair_prompt(&brief(&settings, false), " M src/nodes/report.rs\n");
 
         assert!(
             prompt
@@ -1019,13 +904,12 @@ mod tests {
     #[test]
     fn the_prompts_only_mention_verbs_and_topics_that_exist() {
         let settings = settings_for("game");
-        let inventory = Inventory::rust(MODULES);
-        let brief = brief(&settings, &inventory, false);
+        let brief = brief(&settings, false);
         for prompt in [
             node_prompt(&brief, "report", false),
             node_prompt(&brief, "report", true),
-            walk_prompt(&brief, &[], false),
-            walk_prompt(&brief, &[], true),
+            walk_prompt(&brief, false),
+            walk_prompt(&brief, true),
             repair_prompt(&brief, ""),
         ] {
             assert_eq!(unknown_mentions(&prompt), Vec::<String>::new(), "{prompt}");

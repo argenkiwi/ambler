@@ -2,7 +2,7 @@
 
 Scaffolds and checks Ambler projects: programs built as walks (state machines) of small, tested nodes. This project is TypeScript (ambler-ts, on Bun); `amble` worked that out from `ambler.ts`.
 
-    amble new [<name>] [--example] [--target rust|ts]  create a project (no name: in this empty folder)
+    amble new [<name>] [--example] [--target rust|ts|py]  create a project (no name: in this empty folder)
     amble node <name> …                  add a node: its contract, a throwing body, failing tests
     amble util <name>                    add a module of side-effectful functions
     amble walk <name> --nodes … --edge … wire nodes into a walk, with its test, spec and script

@@ -6,6 +6,9 @@ const KEYWORDS: &[&str] = &[
     "in", "let", "loop", "macro", "match", "mod", "move", "mut", "override", "priv", "pub", "ref",
     "return", "self", "static", "struct", "super", "trait", "true", "try", "type", "typeof",
     "unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+    // Python's, so a name is a valid module, class and field name in every target.
+    "and", "assert", "class", "def", "del", "elif", "except", "finally", "from", "global", "import",
+    "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "with",
 ];
 
 /// Whether `name` can be a module, file and field name: `snake_case` and not a keyword.

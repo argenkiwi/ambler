@@ -8,6 +8,6 @@ This is an Ambler project: a program built as walks (state machines) of small, t
 - **Keep the spec true.** `specs/<walk>.md` describes each walk in plain language. Change it in the same commit as the wiring.
 - **Bump the version on PRs.** Every pull request must increment the package version in `Cargo.toml` (following semver).
 - **Finish with `amble check`.** It verifies the conventions, then formatting, lints and tests. The work is not done until it passes.
-- **Leave the engine alone.** `src/engine.rs` (Rust) or `ambler.ts` (TypeScript) is the same in every Ambler project.
+- **Leave the engine alone.** `src/engine.rs` (Rust), `ambler.ts` (TypeScript) or `src/<package>/engine.py` (Python) is the same in every Ambler project.
 
 If `amble` is not installed: `cargo install --git https://github.com/argenkiwi/amble`.

@@ -68,7 +68,7 @@ impl<U: Utils> PlanPave<U> {
             self.utils.env(AGENT_VAR),
             self.utils.env(BUILD_VAR),
         )?;
-        if Target::detect(|path| self.utils.exists(path)) != Some(target) {
+        if !target.is_project(|path| self.utils.exists(path)) {
             return Err("run this from the root of an Ambler project".to_string());
         }
         let spec = settings.spec_path();

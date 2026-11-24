@@ -22,7 +22,7 @@ Run it from the root of an Ambler project in a git repository, once the spec is 
    - the check failing for any other reason: repair it.
 3. Run the agent with a prompt that holds only what the task needs. A node's prompt has its own section of the spec, the shared state and the state the project's nodes already have.
 
-pave stops with exit 0 once the walk (`src/walks/<spec>.rs`, or `walks/<spec>.ts`) exists and the check passes.
+pave stops with exit 0 once the walk (`src/walks/<spec>.rs`, `walks/<spec>.ts` or `src/<package>/walks/<spec>.py`) exists and the check passes.
 
 ## Safeguards
 

@@ -1,0 +1,24 @@
+# Program Specifications
+
+`amble node`, `amble walk`, `amble util` and `amble check` hand the verb, with its arguments, to the native Ambler CLI of the project's target, and end with the exit code it ends with. amble does none of this work itself: each target's CLI scaffolds and checks its own language. See `docs/tooling_protocol.md`.
+
+## Nodes
+
+### Delegate
+- Initial node.
+- Works out where to run the verb: the project's own CLI (`cargo ambler` for Rust, `bun run ambler` for TypeScript, `uv run ambler-cli` for Python) when it is installed. For `node`, `walk` and `util` in a TypeScript or Python project that has not installed it, it prints how to install it and runs the CLI with `bunx` or `uvx` instead, if that is installed. `check` never downloads the CLI.
+- Runs the CLI with the verb and its arguments unchanged, sharing the terminal, and keeps its exit code.
+- If the CLI ran, it terminates, whatever its exit code.
+- If there is no CLI to run, or it could not be started, it records how to install it, sets the exit code to 2 and transitions to `REPORT`.
+
+### Report
+- Prints the recorded reason on standard error and terminates.
+
+## Shared State
+
+The shared state consists of:
+- `target`: the language of the project.
+- `verb`: the verb handed to the CLI.
+- `args`: the arguments after the verb.
+- `exit_code`: the exit code amble ends with.
+- `message`: why the verb could not be run, if it could not.

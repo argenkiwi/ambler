@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "ambler": "bun cli.ts",
     "test": "bun test --pass-with-no-tests",
     "check": "tsc --noEmit",
     "lint": "biome check"
