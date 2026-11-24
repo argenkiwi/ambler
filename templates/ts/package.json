@@ -1,0 +1,16 @@
+{
+  "name": "{{package}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ambler": "bun cli.ts",
+    "test": "bun test --pass-with-no-tests",
+    "check": "tsc --noEmit",
+    "lint": "biome check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/bun": "1.4.5",
+    "typescript": "7.0.2"
+  }
+}
