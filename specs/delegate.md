@@ -6,7 +6,7 @@
 
 ### Delegate
 - Initial node.
-- Works out where to run the verb: the project's own CLI (`cargo ambler` for Rust, `bun run ambler` for TypeScript, `uv run ambler-cli` for Python) when it is installed. For `node`, `walk` and `util` in a TypeScript or Python project that has not installed it, it prints how to install it and runs the CLI with `bunx` or `uvx` instead, if that is installed. `check` never downloads the CLI.
+- Works out where to run the verb: the project's own CLI (`cargo ambler` for Rust, `bun run ambler` for TypeScript, `uv run ambler` for Python) when it is installed. `ambler new` makes each one a dev dependency of the project, run as a project script, so nothing has to be on the `PATH`; Rust uses an `xtask` crate behind a `cargo ambler` alias, and a global `cargo-ambler` also works. Projects made before that still run through their own `cli.ts` and `ambler-cli`. For `node`, `walk` and `util` in a TypeScript or Python project that has not installed it, it prints how to get it (install what the project already depends on, or add the dependency, with the exact command) and runs the CLI with `bunx` or `uvx` instead, if that is installed. `check` never downloads the CLI.
 - Runs the CLI with the verb and its arguments unchanged, sharing the terminal, and keeps its exit code.
 - If the CLI ran, it terminates, whatever its exit code.
 - If there is no CLI to run, or it could not be started, it records how to install it, sets the exit code to 2 and transitions to `REPORT`.

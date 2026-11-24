@@ -8,7 +8,6 @@ use crate::scaffold::{Change, names};
 
 /// The engine every TypeScript project shares.
 pub const ENGINE: &str = include_str!("../../../templates/ts/ambler.ts");
-const CLI: &str = include_str!("../../../templates/ts/cli.ts");
 const PACKAGE: &str = include_str!("../../../templates/ts/package.json");
 const TSCONFIG: &str = include_str!("../../../templates/ts/tsconfig.json");
 const BIOME: &str = include_str!("../../../templates/ts/biome.json");
@@ -118,7 +117,6 @@ pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
         Change::write(at(".gitignore"), GITIGNORE),
         Change::write(at("README.md"), named(README)),
         Change::write(at("ambler.ts"), ENGINE),
-        Change::write(at("cli.ts"), CLI),
     ];
     changes.extend(context(folder));
     if example {
@@ -157,6 +155,12 @@ mod tests {
         assert!(package.contains("\"name\": \"my-app\","));
         assert!(!package.contains("{{"));
         assert!(contents(&changes, "my-app/ambler.ts").contains("export function ambler"));
+        assert!(package.contains("\"ambler\": \"github:argenkiwi/ambler-ts\""));
+        assert!(
+            changes
+                .iter()
+                .all(|change| change.path() != "my-app/cli.ts")
+        );
         assert!(contents(&changes, "my-app/tsconfig.json").contains("\"strict\": true"));
         assert!(contents(&changes, "my-app/biome.json").contains("\"preset\": \"recommended\""));
         assert!(contents(&changes, "my-app/AGENTS.md").contains("ambler check"));

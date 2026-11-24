@@ -14,15 +14,15 @@ Each target repository exposes a command-line runner through its standard packag
 
 | Target | Native Tool | Invocation by `ambler` |
 |---|---|---|
-| **Rust** (`ambler-rs`) | `cargo ambler` (the `cargo-ambler` crate) | `cargo ambler <command>` |
-| **TypeScript** (`ambler-ts`) | Project-local `ambler` script in `package.json` (not a PATH binary) | `bun run ambler <command>` |
-| **Python** (`ambler-py`) | `ambler-cli` (or `python -m ambler.cli`) | `uv run ambler-cli <command>` |
+| **Rust** (`ambler-rs`) | `ambler` crate: `ambler::cli::run`, run by the project's `xtask` behind a `cargo ambler` alias (or the `cargo-ambler` binary) | `cargo ambler <command>` |
+| **TypeScript** (`ambler-ts`) | `ambler` package: a dev dependency whose `ambler` bin lives in `node_modules/.bin` (not a PATH binary) | `bun run ambler <command>` |
+| **Python** (`ambler-py`) | `ambler` package: a dev dependency whose `ambler` script lives in `.venv/bin` (not a PATH binary); `ambler-cli` is a deprecated alias | `uv run ambler <command>` |
 | **Kotlin** (`ambler-kt`) | Kotlin wrapper script / Gradle task | `./kotlin ambler <command>` |
 | **Mojo** (`ambler-mojo`) | Pixi task | `pixi run ambler <command>` |
 
 ### Naming
 
-`ambler` is the orchestrator's binary and owns that name on `PATH`. A native CLI must never install an executable called `ambler`: use a cargo subcommand (`cargo ambler`), a suffixed script (`ambler-cli`), or a project-local script, task or wrapper (`bun run ambler`, `pixi run ambler`, `./kotlin ambler`). A project's own program binaries are named after what they run (`counter`, `ambler-counter`), never `ambler`.
+`ambler` is the orchestrator's binary and owns that name on `PATH`. A native CLI must never install an executable called `ambler` **globally**: it is installed into the project as a dev dependency and run as a project-local script, task or wrapper (`bun run ambler`, `uv run ambler`, `cargo ambler` via an `xtask` alias, `pixi run ambler`, `./kotlin ambler`), so nothing has to be on the `PATH`. A package, crate or script may be called `ambler` because it never lands on the `PATH`; `ambler new` adds the dependency from GitHub to every project it creates, and `ambler` says how to install it when it is missing. A project's own program binaries are named after what they run (`counter`, `ambler-counter`), never `ambler`.
 
 ---
 

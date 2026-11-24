@@ -9,6 +9,7 @@ Without `<name>`, it makes the current folder the project, named after the folde
 It writes:
 
 - `Cargo.toml` with `thiserror`, `tokio` and the lint settings (`unsafe_code` forbidden, clippy warnings on).
+- `xtask/` and `.cargo/config.toml`: the Ambler CLI as a dependency (`ambler-rs`, from GitHub) behind the `cargo ambler` alias, so nothing has to be installed globally.
 - `src/lib.rs`, `src/engine.rs` and empty `src/nodes/`, `src/walks/` and `src/utils/` modules.
 - `README.md`, `.gitignore`.
 - `AGENTS.md`, `CLAUDE.md` (which imports it) and `.agents/skills/ambler/SKILL.md`, with `.claude/skills` linked to `.agents/skills`. See `ambler help agents`.

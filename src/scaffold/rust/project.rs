@@ -11,6 +11,9 @@ const ENGINE: &str = include_str!("../../engine.rs");
 const CARGO: &str = include_str!("../../../templates/rust/Cargo.toml");
 const GITIGNORE: &str = include_str!("../../../templates/rust/gitignore");
 const README: &str = include_str!("../../../templates/rust/README.md");
+const XTASK_CARGO: &str = include_str!("../../../templates/rust/xtask/Cargo.toml");
+const XTASK_MAIN: &str = include_str!("../../../templates/rust/xtask/main.rs");
+const CARGO_CONFIG: &str = include_str!("../../../templates/rust/cargo_config.toml");
 const LIB: &str = include_str!("../../../templates/rust/lib.rs");
 const NODES: &str = include_str!("../../../templates/rust/nodes_mod.rs");
 const WALKS: &str = include_str!("../../../templates/rust/walks_mod.rs");
@@ -61,6 +64,9 @@ pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
         Change::write(at("README.md"), named(README)),
         Change::write(at("src/lib.rs"), named(LIB)),
         Change::write(at("src/engine.rs"), ENGINE),
+        Change::write(at("xtask/Cargo.toml"), XTASK_CARGO),
+        Change::write(at("xtask/src/main.rs"), XTASK_MAIN),
+        Change::write(at(".cargo/config.toml"), CARGO_CONFIG),
     ];
     changes.extend(context(folder));
 
@@ -118,6 +124,10 @@ mod tests {
         assert!(contents(&changes, "my-app/Cargo.toml").contains("name = \"my-app\"\n"));
         assert!(!contents(&changes, "my-app/Cargo.toml").contains("{{"));
         assert!(contents(&changes, "my-app/src/engine.rs").contains("pub trait Walk"));
+        assert!(contents(&changes, "my-app/Cargo.toml").contains("members = [\".\", \"xtask\"]"));
+        assert!(contents(&changes, "my-app/xtask/Cargo.toml").contains("ambler-rs"));
+        assert!(contents(&changes, "my-app/xtask/src/main.rs").contains("ambler::cli::run"));
+        assert!(contents(&changes, "my-app/.cargo/config.toml").contains("ambler = \"run"));
         assert!(contents(&changes, "my-app/src/lib.rs").contains("pub use engine::"));
         assert_eq!(contents(&changes, "my-app/src/nodes/mod.rs"), NODES);
         assert_eq!(contents(&changes, "my-app/specs/.gitkeep"), "");

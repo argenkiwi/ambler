@@ -2,8 +2,10 @@
 //! `docs/tooling_protocol.md`).
 //!
 //! The CLI is looked for in this order: the project's own (`cargo ambler`, `bun run ambler`,
-//! `uv run ambler-cli`), then, for TypeScript and Python, a package runner (`bunx`, `uvx`) that
-//! fetches it. There is no fallback: with neither, the verb fails and says how to get the CLI.
+//! `uv run ambler`: a dev dependency that `ambler new` adds, run as a project script, so nothing
+//! has to be on the `PATH`), then, for TypeScript and Python, a package runner (`bunx`, `uvx`)
+//! that fetches it. There is no fallback: with neither, the verb fails and says how to get the
+//! CLI.
 
 use crate::scaffold::target::Target;
 
@@ -39,7 +41,14 @@ pub fn route(
     installed: impl Fn(&str) -> bool,
 ) -> Route {
     if target.has_native_runner(&exists, &installed) {
-        return Route::Local(command(target.native_runner(), verb, args));
+        let runner = match target {
+            // Projects made before the CLI became `ambler` only have `ambler-cli`.
+            Target::Python { .. } if !exists(".venv/bin/ambler") => {
+                ("uv", &["run", "ambler-cli"][..])
+            }
+            _ => target.native_runner(),
+        };
+        return Route::Local(command(runner, verb, args));
     }
     match target.global_runner() {
         Some(global) if installed(global.0) => Route::Global(command(global, verb, args)),
@@ -47,21 +56,25 @@ pub fn route(
     }
 }
 
-/// What to do to get the target's own CLI.
+/// What to do to get the target's own CLI: install what the project already depends on, add the
+/// dependency if it does not have it yet, or, for Rust, install the CLI globally.
 #[must_use]
 pub fn diagnostic(target: Target) -> String {
     match target {
-        Target::Rust => "ambler: 'cargo-ambler' not found.\n\
-             Tip: Run 'cargo install --git https://github.com/argenkiwi/ambler-rs cargo-ambler' \
-             to install it."
+        Target::Rust => "ambler: the Rust Ambler CLI ('cargo ambler') was not found.\n\
+             Tip: Run 'cargo build' if this project has an 'xtask' crate. Otherwise add one that \
+             depends on https://github.com/argenkiwi/ambler-rs (see its README), or install the \
+             CLI with 'cargo install --git https://github.com/argenkiwi/ambler-rs'."
             .to_string(),
-        Target::TypeScript => "ambler: 'ambler' script (cli.ts) not found in this project.\n\
-             Tip: Did you run 'bun install' in this project? Run 'bun install' to install \
-             project dependencies."
+        Target::TypeScript => "ambler: the TypeScript Ambler CLI ('ambler') was not found in this \
+             project.\n\
+             Tip: Run 'bun install' to install the project's dependencies. If it does not depend \
+             on the CLI yet, run 'bun add -d github:argenkiwi/ambler-ts'."
             .to_string(),
-        Target::Python { .. } => "ambler: 'ambler-cli' not found in virtual environment.\n\
-             Tip: Did you run 'uv sync' in this project? Run 'uv sync' to install project \
-             dependencies."
+        Target::Python { .. } => "ambler: the Python Ambler CLI ('ambler') was not found in the \
+             virtual environment.\n\
+             Tip: Run 'uv sync' to install the project's dependencies. If it does not depend on \
+             the CLI yet, run 'uv add --dev git+https://github.com/argenkiwi/ambler-py'."
             .to_string(),
     }
 }
@@ -93,12 +106,12 @@ mod tests {
             PY,
             "check",
             &args(&["--lint-only"]),
-            |p| p == ".venv/bin/ambler-cli",
+            |p| p == ".venv/bin/ambler",
             |_| true,
         );
         assert_eq!(
             routed,
-            Route::Local(args(&["uv", "run", "ambler-cli", "check", "--lint-only"]))
+            Route::Local(args(&["uv", "run", "ambler", "check", "--lint-only"]))
         );
     }
 
@@ -111,7 +124,7 @@ mod tests {
                 "uvx",
                 "--from",
                 "git+https://github.com/argenkiwi/ambler-py",
-                "ambler-cli",
+                "ambler",
                 "node",
                 "ask"
             ]))
@@ -142,7 +155,7 @@ mod tests {
     fn rust_has_nowhere_else_to_run() {
         let no_ambler = |program: &str| program == "cargo";
         assert_eq!(
-            route(Target::Rust, "check", &[], |_| true, no_ambler),
+            route(Target::Rust, "check", &[], |_| false, no_ambler),
             Route::Missing
         );
     }
@@ -153,13 +166,52 @@ mod tests {
     }
 
     #[test]
-    fn each_diagnostic_says_how_to_get_the_cli() {
-        assert!(diagnostic(Target::Rust).contains("cargo install --git"));
-        assert!(diagnostic(Target::TypeScript).contains("bun install"));
+    fn a_python_project_made_before_the_cli_was_named_ambler_runs_ambler_cli() {
+        let routed = route(PY, "check", &[], |p| p == ".venv/bin/ambler-cli", |_| true);
         assert_eq!(
-            diagnostic(PY),
-            "ambler: 'ambler-cli' not found in virtual environment.\nTip: Did you run 'uv sync' \
-             in this project? Run 'uv sync' to install project dependencies."
+            routed,
+            Route::Local(args(&["uv", "run", "ambler-cli", "check"]))
         );
+    }
+
+    #[test]
+    fn rust_runs_its_xtask_alias_without_a_global_install() {
+        let only_cargo = |program: &str| program == "cargo";
+        let routed = route(
+            Target::Rust,
+            "node",
+            &[],
+            |p| p == "xtask/Cargo.toml",
+            only_cargo,
+        );
+        assert_eq!(routed, Route::Local(args(&["cargo", "ambler", "node"])));
+    }
+
+    #[test]
+    fn typescript_runs_the_installed_dependency() {
+        let routed = route(
+            Target::TypeScript,
+            "util",
+            &[],
+            |p| p == "node_modules/.bin/ambler",
+            |_| true,
+        );
+        assert_eq!(
+            routed,
+            Route::Local(args(&["bun", "run", "ambler", "util"]))
+        );
+    }
+
+    #[test]
+    fn each_diagnostic_says_how_to_install_the_dependency_or_the_cli() {
+        let rust = diagnostic(Target::Rust);
+        assert!(rust.contains("cargo build"));
+        assert!(rust.contains("cargo install --git https://github.com/argenkiwi/ambler-rs"));
+        let ts = diagnostic(Target::TypeScript);
+        assert!(ts.contains("bun install"));
+        assert!(ts.contains("bun add -d github:argenkiwi/ambler-ts"));
+        let py = diagnostic(PY);
+        assert!(py.contains("uv sync"));
+        assert!(py.contains("uv add --dev git+https://github.com/argenkiwi/ambler-py"));
     }
 }

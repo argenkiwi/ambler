@@ -1,0 +1,3 @@
+# `cargo ambler <verb>` runs the Ambler CLI from the `xtask` crate: nothing to install.
+[alias]
+ambler = "run --quiet --package xtask --"
