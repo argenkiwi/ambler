@@ -1,14 +1,14 @@
-# amble
+# ambler
 
 Scaffolds and checks Ambler projects: programs built as walks (state machines) of small, tested nodes.
 
-    amble new [<name>] [--example] [--target rust|ts|py]  create a project (no name: in this empty folder)
-    amble node <name> …                  add a node: its contract, a todo body, failing tests
-    amble util <name>                    add a module of side-effectful functions
-    amble walk <name> --nodes … --edge … wire nodes into a walk, with its spec and runner
-    amble check [--lint-only]             verify the conventions, then fmt, clippy and tests
-    amble pave <spec> --agent '<cmd>'    implement a spec with an agent, one task per run
-    amble help [topic]                   this guide, or one topic
+    ambler new [<name>] [--example] [--target rust|ts|py]  create a project (no name: in this empty folder)
+    ambler node <name> …                  add a node: its contract, a todo body, failing tests
+    ambler util <name>                    add a module of side-effectful functions
+    ambler walk <name> --nodes … --edge … wire nodes into a walk, with its spec and runner
+    ambler check [--lint-only]             verify the conventions, then fmt, clippy and tests
+    ambler pave <spec> --agent '<cmd>'    implement a spec with an agent, one task per run
+    ambler help [topic]                   this guide, or one topic
 
 Topics: a verb (new, node, util, walk, check, pave, help), or conventions, node-design, testing, spec, agents.
 
@@ -30,7 +30,7 @@ Topics: a verb (new, node, util, walk, check, pave, help), or conventions, node-
 
 ## Usual order of work
 
-1. Describe the walk in `specs/<walk>.md` (`amble help spec`).
-2. For each node: `amble node`, then tests, then the body (`amble help node-design`, `amble help testing`).
-3. `amble walk` to wire them; finish the wiring test (`amble help walk`).
-4. `amble check`.
+1. Describe the walk in `specs/<walk>.md` (`ambler help spec`).
+2. For each node: `ambler node`, then tests, then the body (`ambler help node-design`, `ambler help testing`).
+3. `ambler walk` to wire them; finish the wiring test (`ambler help walk`).
+4. `ambler check`.

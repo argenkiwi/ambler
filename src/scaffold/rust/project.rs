@@ -1,6 +1,6 @@
 //! The files of a new Rust Ambler project.
 //!
-//! The engine is this repository's own: what `amble new` writes is what amble itself compiles
+//! The engine is this repository's own: what `ambler new` writes is what ambler itself compiles
 //! and tests.
 
 use crate::scaffold::Change;
@@ -121,7 +121,7 @@ mod tests {
         assert!(contents(&changes, "my-app/src/lib.rs").contains("pub use engine::"));
         assert_eq!(contents(&changes, "my-app/src/nodes/mod.rs"), NODES);
         assert_eq!(contents(&changes, "my-app/specs/.gitkeep"), "");
-        assert!(contents(&changes, "my-app/AGENTS.md").contains("amble check"));
+        assert!(contents(&changes, "my-app/AGENTS.md").contains("ambler check"));
         assert_eq!(contents(&changes, "my-app/CLAUDE.md").trim(), "@AGENTS.md");
         assert!(contents(&changes, "my-app/.agents/skills/ambler/SKILL.md").starts_with("---\n"));
         assert!(changes.contains(&Change::Symlink {

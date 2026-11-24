@@ -88,7 +88,7 @@ where
             Route::Global(words) if verb != "check" => {
                 self.utils.eprint(&runner::diagnostic(target));
                 self.utils
-                    .eprint(&format!("amble: running '{}' instead.", words[0]));
+                    .eprint(&format!("ambler: running '{}' instead.", words[0]));
                 words
             }
             Route::Global(_) | Route::Missing => {
@@ -105,9 +105,9 @@ where
             }
             Err(error) => {
                 *state.message_mut() = Some(if error.kind() == io::ErrorKind::NotFound {
-                    format!("amble: '{}' not found.", words[0])
+                    format!("ambler: '{}' not found.", words[0])
                 } else {
-                    format!("amble: could not run '{}': {error}", words[0])
+                    format!("ambler: could not run '{}': {error}", words[0])
                 });
                 *state.exit_code_mut() = 2;
                 Ok(Outcome::Unavailable)

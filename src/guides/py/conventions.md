@@ -1,6 +1,6 @@
-# amble conventions
+# ambler conventions
 
-Every convention of a Python Ambler project, with why it is there. `amble check` enforces the structural ones.
+Every convention of a Python Ambler project, with why it is there. `ambler check` enforces the structural ones.
 
 ## Nodes
 
@@ -31,5 +31,5 @@ Every convention of a Python Ambler project, with why it is there. `amble check`
 
 ## Project
 
-- pyright runs in strict mode and ruff's `E`, `F`, `I`, `UP`, `B`, `SIM` and `RUF` rules are errors in `amble check`, as is `ruff format`.
+- pyright runs in strict mode and ruff's `E`, `F`, `I`, `UP`, `B`, `SIM` and `RUF` rules are errors in `ambler check`, as is `ruff format`.
 - Tests import with pytest's `importlib` mode, so a node and a walk may share a name.

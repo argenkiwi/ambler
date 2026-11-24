@@ -31,7 +31,7 @@ pub trait HasVerb {
     fn verb(&self) -> &str;
 }
 
-/// A state that has the exit code `amble` ends with.
+/// A state that has the exit code `ambler` ends with.
 pub trait HasExitCode {
     fn exit_code(&self) -> u8;
     fn exit_code_mut(&mut self) -> &mut u8;
@@ -49,7 +49,7 @@ pub trait HasMessage {
     fn message_mut(&mut self) -> &mut Option<String>;
 }
 
-/// A state that has the `amble pave` loop: its settings, last check, task and counters.
+/// A state that has the `ambler pave` loop: its settings, last check, task and counters.
 pub trait HasPaving {
     fn paving(&self) -> &Paving;
     fn paving_mut(&mut self) -> &mut Paving;

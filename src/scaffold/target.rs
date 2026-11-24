@@ -1,6 +1,6 @@
 //! The language a project is written in, and where its parts live.
 //!
-//! The target comes from `--target`, else the `AMBLE_TARGET` variable, else the files of the
+//! The target comes from `--target`, else the `AMBLER_TARGET` variable, else the files of the
 //! project in the current folder, else it is Rust.
 //!
 //! A Python project's files live in its package, `src/<package>/`, so the Python target carries
@@ -9,9 +9,9 @@
 use super::names;
 
 /// The environment variable that names the target when `--target` is not given.
-pub const VAR: &str = "AMBLE_TARGET";
+pub const VAR: &str = "AMBLER_TARGET";
 
-/// A language amble generates and checks.
+/// A language ambler generates and checks.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Target {
     /// ambler-rs: a Cargo crate with `src/engine.rs`.
@@ -21,7 +21,7 @@ pub enum Target {
     TypeScript,
     /// ambler-py: a uv project whose package, `src/<package>/`, has `engine.py`.
     Python {
-        /// The import name, `snake_case`. Empty until a project is known (`amble new`).
+        /// The import name, `snake_case`. Empty until a project is known (`ambler new`).
         package: &'static str,
     },
 }
@@ -175,7 +175,7 @@ impl Target {
         }
     }
 
-    /// The text that marks code `amble node` and `amble walk` left unfinished.
+    /// The text that marks code `ambler node` and `ambler walk` left unfinished.
     #[must_use]
     pub fn unfinished(self) -> &'static [&'static str] {
         match self {

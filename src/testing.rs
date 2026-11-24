@@ -32,7 +32,7 @@ pub(crate) struct Fake {
     pub env: Vec<(&'static str, &'static str)>,
     /// The git folder, if the current directory is in a repository.
     pub git_dir: Option<&'static str>,
-    /// What each `amble check` run says, in order: whether it passes, and its output. Once
+    /// What each `ambler check` run says, in order: whether it passes, and its output. Once
     /// they run out, the check passes with no output.
     pub checks: Mutex<VecDeque<(bool, &'static str)>>,
     /// Whether the working tree has uncommitted changes.

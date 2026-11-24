@@ -1,4 +1,4 @@
-//! {{package}}: an Ambler project. Run `amble help` for how it is laid out.
+//! {{package}}: an Ambler project. Run `ambler help` for how it is laid out.
 
 pub mod engine;
 pub mod nodes;

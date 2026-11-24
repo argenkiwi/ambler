@@ -1,8 +1,8 @@
-# amble node
+# ambler node
 
-    amble node <name> (--outcomes <a,b> | --terminal) [--fallible] [--state <field>[:<Type>]]...
+    ambler node <name> (--outcomes <a,b> | --terminal) [--fallible] [--state <field>[:<Type>]]...
 
-Writes `src/<package>/nodes/<name>.py` and its tests, `tests/nodes/test_<name>.py`. Run it from the project root. Decide the flags with `amble help node-design` first: they are the node's contract.
+Writes `src/<package>/nodes/<name>.py` and its tests, `tests/nodes/test_<name>.py`. Run it from the project root. Decide the flags with `ambler help node-design` first: they are the node's contract.
 
 - `<name>`: snake_case (or kebab-case), no `_node` suffix. The class is the same name in PascalCase.
 - `--outcomes success,invalid_input`: one member of `Outcome` per thing that can happen, `SUCCESS` and `INVALID_INPUT`. The walk gives each one a successor.
@@ -21,7 +21,7 @@ What you get:
 What is left to you, in this order:
 
 1. Give `Utils` one method per side effect and implement each in `SystemUtils`.
-2. Finish the tests: rename them, set up state and fakes, assert outcome and state (`amble help testing`).
+2. Finish the tests: rename them, set up state and fakes, assert outcome and state (`ambler help testing`).
 3. Run `uv run pytest tests/nodes/test_<name>.py` and see them fail with `not yet implemented`.
 4. Implement `run`. Do not change the tests while doing so.
 5. Replace the `TODO` docstrings.

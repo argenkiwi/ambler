@@ -87,20 +87,20 @@ where
         Ok(match paving.decide(task) {
             Decision::Assigned => {
                 self.utils.print(&format!(
-                    "[amble pave] iteration {}: {}",
+                    "[ambler pave] iteration {}: {}",
                     paving.iterations, paving.label
                 ));
                 Outcome::Assigned
             }
             Decision::Done => {
                 self.utils.print(&format!(
-                    "[amble pave] done: {walk} exists and amble check passes."
+                    "[ambler pave] done: {walk} exists and ambler check passes."
                 ));
                 Outcome::Done
             }
             Decision::Exhausted => Outcome::Exhausted,
             Decision::Stuck(reason) => {
-                *state.message_mut() = Some(format!("amble pave: {reason}"));
+                *state.message_mut() = Some(format!("ambler pave: {reason}"));
                 Outcome::Stuck
             }
         })
@@ -147,7 +147,7 @@ mod tests {
         assert_eq!(outcome, Outcome::Assigned);
         assert_eq!(state.paving.task, Some(Task::Node("greet".to_string())));
         assert_eq!(state.paving.iterations, 1);
-        assert_eq!(fake.printed(), ["[amble pave] iteration 1: node greet"]);
+        assert_eq!(fake.printed(), ["[ambler pave] iteration 1: node greet"]);
     }
 
     #[tokio::test]

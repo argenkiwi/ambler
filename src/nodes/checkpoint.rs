@@ -77,15 +77,15 @@ where
         if self.utils.dirty()? {
             if paving.settings.dry_run {
                 self.utils.print(&format!(
-                    "[amble pave] dry run: would commit a checkpoint: {label}"
+                    "[ambler pave] dry run: would commit a checkpoint: {label}"
                 ));
             } else {
                 self.utils.commit(
-                    &format!("amble-pave({}): {label}", paving.settings.spec),
-                    "Checkpoint: amble check passed.",
+                    &format!("ambler-pave({}): {label}", paving.settings.spec),
+                    "Checkpoint: ambler check passed.",
                 )?;
                 self.utils
-                    .print(&format!("[amble pave] checkpoint: {label}"));
+                    .print(&format!("[ambler pave] checkpoint: {label}"));
             }
         }
         state.paving_mut().repairs = 0;
@@ -131,8 +131,8 @@ mod tests {
         let outcome = Checkpoint::with_utils(&fake).run(&mut state).await.unwrap();
 
         assert_eq!(outcome, Outcome::Saved);
-        assert_eq!(fake.git(), ["commit amble-pave(game): node read_move"]);
-        assert_eq!(fake.printed(), ["[amble pave] checkpoint: node read_move"]);
+        assert_eq!(fake.git(), ["commit ambler-pave(game): node read_move"]);
+        assert_eq!(fake.printed(), ["[ambler pave] checkpoint: node read_move"]);
         assert_eq!(state.paving.repairs, 0);
     }
 
@@ -159,7 +159,7 @@ mod tests {
         assert!(fake.git().is_empty());
         assert_eq!(
             fake.printed(),
-            ["[amble pave] dry run: would commit a checkpoint: node read_move"]
+            ["[ambler pave] dry run: would commit a checkpoint: node read_move"]
         );
     }
 

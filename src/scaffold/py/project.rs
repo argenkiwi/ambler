@@ -17,7 +17,7 @@ const README: &str = include_str!("../../../templates/py/README.md");
 const PACKAGES: &[(&str, &str)] = &[
     (
         "__init__.py",
-        "\"\"\"An Ambler project: run `amble help` for how it is laid out.\"\"\"\n",
+        "\"\"\"An Ambler project: run `ambler help` for how it is laid out.\"\"\"\n",
     ),
     (
         "nodes/__init__.py",
@@ -219,7 +219,7 @@ mod tests {
         assert!(contents(&changes, "my-app/src/my_app/engine.py").contains("class Walk[Id, S]"));
         assert!(contents(&changes, "my-app/src/my_app/nodes/__init__.py").starts_with("\"\"\""));
         assert!(contents(&changes, "my-app/README.md").contains("src/my_app/engine.py"));
-        assert!(contents(&changes, "my-app/AGENTS.md").contains("amble check"));
+        assert!(contents(&changes, "my-app/AGENTS.md").contains("ambler check"));
         assert_eq!(contents(&changes, "my-app/tests/.gitkeep"), "");
         assert_eq!(contents(&changes, "my-app/specs/.gitkeep"), "");
     }

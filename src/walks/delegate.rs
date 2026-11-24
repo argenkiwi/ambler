@@ -1,4 +1,4 @@
-//! `amble node`, `walk`, `util` and `check`: hand the verb to the target's native CLI. See
+//! `ambler node`, `walk`, `util` and `check`: hand the verb to the target's native CLI. See
 //! `specs/delegate.md`.
 
 use super::State;
@@ -55,7 +55,7 @@ where
     }
 }
 
-/// Runs `amble <verb> …` through the target's native CLI.
+/// Runs `ambler <verb> …` through the target's native CLI.
 ///
 /// # Errors
 ///

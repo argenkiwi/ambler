@@ -8,7 +8,7 @@ use crate::utils::fs;
 use std::convert::Infallible;
 use std::io;
 
-const USAGE: &str = "usage: amble new [<name>] [--example] [--target rust|ts|py]";
+const USAGE: &str = "usage: ambler new [<name>] [--example] [--target rust|ts|py]";
 
 /// Every file of a new `target` project named `package` in `folder`.
 fn project(target: Target, package: &str, folder: &str, example: bool) -> Vec<Change> {
@@ -39,7 +39,7 @@ fn next(target: Target, then: &str) -> String {
         Target::TypeScript => "`bun install`, then ".to_string(),
         Target::Python { .. } => "`uv sync`, then ".to_string(),
     };
-    format!("Next: {then}{install}`amble help` for how to add nodes and walks.")
+    format!("Next: {then}{install}`ambler help` for how to add nodes and walks.")
 }
 
 /// Where [`PlanProject`] leaves the walk.
@@ -131,7 +131,7 @@ impl<U: Utils> PlanProject<U> {
         if !is_package_name(&name) {
             return Err(format!(
                 "the folder name `{name}` is not a package name: rename the folder, or run \
-                 `amble new <name>` to create a subfolder"
+                 `ambler new <name>` to create a subfolder"
             ));
         }
         check_name(target, &name)?;
@@ -141,7 +141,7 @@ impl<U: Utils> PlanProject<U> {
             .map_err(|e| format!("could not read the current folder: {e}"))?;
         if entries.iter().any(|entry| entry != ".git") {
             return Err(
-                "the current folder is not empty: run `amble new <name>` to create a subfolder"
+                "the current folder is not empty: run `ambler new <name>` to create a subfolder"
                     .to_string(),
             );
         }

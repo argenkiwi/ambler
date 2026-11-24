@@ -75,7 +75,7 @@ fn create_parent(path: &str) -> io::Result<()> {
     }
 }
 
-/// The files `amble check` looks at, keyed by `/`-separated path: every `.md` under `specs/`
+/// The files `ambler check` looks at, keyed by `/`-separated path: every `.md` under `specs/`
 /// and, for Rust, `Cargo.toml` and every `.rs` under `src/`; for TypeScript, `package.json`,
 /// `ambler.ts` and every `.ts` under `nodes/`, `walks/` and `utils/`. Python: `pyproject.toml`
 /// and every `.py` under `src/` and `tests/`.

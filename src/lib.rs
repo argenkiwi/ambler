@@ -1,4 +1,4 @@
-//! amble: scaffolds and checks Ambler projects. Run `amble help` for the guides.
+//! ambler: scaffolds and checks Ambler projects. Run `ambler help` for the guides.
 
 pub mod engine;
 pub mod guides;

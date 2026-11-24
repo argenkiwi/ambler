@@ -1,6 +1,6 @@
-# amble conventions
+# ambler conventions
 
-Every convention of an Ambler project, with why it is there. `amble check` enforces the structural ones.
+Every convention of an Ambler project, with why it is there. `ambler check` enforces the structural ones.
 
 ## Nodes
 
@@ -33,5 +33,5 @@ Every convention of an Ambler project, with why it is there. `amble check` enfor
 
 ## Project
 
-- `unsafe_code` is forbidden and clippy warnings are errors in `amble check`.
+- `unsafe_code` is forbidden and clippy warnings are errors in `ambler check`.
 - Errors are `thiserror` enums.

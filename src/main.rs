@@ -1,9 +1,9 @@
-//! The `amble` command line: runs the walk for the verb in `args[0]`; see `specs/*.md`.
+//! The `ambler` command line: runs the walk for the verb in `args[0]`; see `specs/*.md`.
 //!
 //! The target language is worked out here, once, for every verb: see `scaffold::target`.
 
-use amble::scaffold::target::{self, Target};
-use amble::walks::{self, Error};
+use ambler::scaffold::target::{self, Target};
+use ambler::walks::{self, Error};
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -25,7 +25,7 @@ async fn main() -> ExitCode {
     let (target, rest): (Target, Vec<String>) = match resolved {
         Ok(resolved) => resolved,
         Err(message) => {
-            eprintln!("amble: {message}");
+            eprintln!("ambler: {message}");
             return ExitCode::FAILURE;
         }
     };
@@ -48,7 +48,7 @@ fn exit_code(result: Result<(), Error>) -> ExitCode {
         Err(Error::Failed) => ExitCode::FAILURE,
         Err(Error::Exit(code)) => ExitCode::from(code),
         Err(error) => {
-            eprintln!("amble: {error}");
+            eprintln!("ambler: {error}");
             ExitCode::FAILURE
         }
     }

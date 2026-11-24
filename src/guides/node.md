@@ -1,8 +1,8 @@
-# amble node
+# ambler node
 
-    amble node <name> (--outcomes <a,b> | --terminal) [--fallible] [--state <field>[:<Type>]]...
+    ambler node <name> (--outcomes <a,b> | --terminal) [--fallible] [--state <field>[:<Type>]]...
 
-Writes `src/nodes/<name>.rs` and registers it in `src/nodes/mod.rs`. Run it from the project root. Decide the flags with `amble help node-design` first: they are the node's contract.
+Writes `src/nodes/<name>.rs` and registers it in `src/nodes/mod.rs`. Run it from the project root. Decide the flags with `ambler help node-design` first: they are the node's contract.
 
 - `<name>`: snake_case, no `_node` suffix. The struct is the same name in PascalCase.
 - `--outcomes success,invalid_input`: one variant of `Outcome` per thing that can happen. The walk gives each one a successor.
@@ -21,7 +21,7 @@ What you get:
 What is left to you, in this order:
 
 1. Give `Utils` one method per side effect and implement each in `SystemUtils`.
-2. Finish the tests: rename them, set up state and mocks, assert outcome and state (`amble help testing`).
+2. Finish the tests: rename them, set up state and mocks, assert outcome and state (`ambler help testing`).
 3. Run `cargo test nodes::<name>::` and see them fail with `not yet implemented`.
 4. Implement `run`. Do not change the tests while doing so.
 5. Replace the `TODO` doc comments.

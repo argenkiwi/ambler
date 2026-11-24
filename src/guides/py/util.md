@@ -1,6 +1,6 @@
-# amble util
+# ambler util
 
-    amble util <name>
+    ambler util <name>
 
 Writes `src/<package>/utils/<name>.py`. Run it from the project root. Nothing is registered: nodes import it by its module path.
 

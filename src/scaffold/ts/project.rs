@@ -159,7 +159,7 @@ mod tests {
         assert!(contents(&changes, "my-app/ambler.ts").contains("export function ambler"));
         assert!(contents(&changes, "my-app/tsconfig.json").contains("\"strict\": true"));
         assert!(contents(&changes, "my-app/biome.json").contains("\"preset\": \"recommended\""));
-        assert!(contents(&changes, "my-app/AGENTS.md").contains("amble check"));
+        assert!(contents(&changes, "my-app/AGENTS.md").contains("ambler check"));
         assert_eq!(contents(&changes, "my-app/nodes/.gitkeep"), "");
         assert_eq!(contents(&changes, "my-app/specs/.gitkeep"), "");
         assert!(changes.contains(&Change::Symlink {

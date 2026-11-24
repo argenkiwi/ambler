@@ -1,10 +1,10 @@
-# amble testing
+# ambler testing
 
 Tests live inline, in a `#[cfg(test)] mod tests` at the bottom of the file they test. There is no `tests/` folder.
 
 ## Nodes: test first
 
-`amble node` writes a body of `todo!()` and one failing test per outcome and per error.
+`ambler node` writes a body of `todo!()` and one failing test per outcome and per error.
 
 1. Finish the tests before the body. One test per branch: each outcome, each error, and each distinct way of reaching them.
 2. Run `cargo test nodes::<name>::`. Every test must fail with `not yet implemented`. A compile error means the contract is wrong: fix the types, not the tests. A pass means the body is not `todo!()`.
@@ -31,7 +31,7 @@ Read the node, list its branches, and write the same kind of tests. They should 
 
 ## Walks: test the wiring
 
-`amble walk` writes a `Script` and one test. `Script` implements every node's `Utils` for `&Script`.
+`ambler walk` writes a `Script` and one test. `Script` implements every node's `Utils` for `&Script`.
 
 - Give `Script` a `Mutex<VecDeque<_>>` per input to play back and a `Mutex<Vec<_>>` per effect to record.
 - Run the walk from its start id with a script that drives it down one path.

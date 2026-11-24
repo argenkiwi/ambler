@@ -1,6 +1,6 @@
 //! The Ambler engine: nodes report outcomes, walks wire outcomes to successors.
 //!
-//! This file is the same in every Ambler project; `amble new` writes it. Leave it as it is.
+//! This file is the same in every Ambler project; `ambler new` writes it. Leave it as it is.
 
 use std::future::Future;
 

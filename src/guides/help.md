@@ -1,10 +1,10 @@
-# amble help
+# ambler help
 
-    amble help [topic]
+    ambler help [topic]
 
 Prints a guide on standard output. Without a topic it prints the overview: the verbs, the four ideas, the layout and the usual order of work.
 
-The guides follow the project's target: run inside a TypeScript project (or with `--target ts`, or `AMBLE_TARGET=ts`) they describe ambler-ts; inside a Python project (or with `--target py`) ambler-py; otherwise ambler-rs. Every verb works out the target the same way, so the flag is only needed for `amble new`.
+The guides follow the project's target: run inside a TypeScript project (or with `--target ts`, or `AMBLER_TARGET=ts`) they describe ambler-ts; inside a Python project (or with `--target py`) ambler-py; otherwise ambler-rs. Every verb works out the target the same way, so the flag is only needed for `ambler new`.
 
 Topics:
 

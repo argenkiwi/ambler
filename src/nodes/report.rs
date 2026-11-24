@@ -60,15 +60,15 @@ mod tests {
     async fn prints_the_message_on_standard_error_and_keeps_it() {
         let fake = Fake::default();
         let mut state = State {
-            message: Some("usage: amble new <name>".to_string()),
+            message: Some("usage: ambler new <name>".to_string()),
             ..State::default()
         };
 
         let Ok(()) = Report::with_utils(&fake).run(&mut state).await;
 
-        assert_eq!(fake.eprinted(), ["usage: amble new <name>"]);
+        assert_eq!(fake.eprinted(), ["usage: ambler new <name>"]);
         assert!(fake.printed().is_empty());
-        assert_eq!(state.message.as_deref(), Some("usage: amble new <name>"));
+        assert_eq!(state.message.as_deref(), Some("usage: ambler new <name>"));
     }
 
     #[tokio::test]

@@ -1,6 +1,6 @@
-# amble node-design
+# ambler node-design
 
-How to decide what a node is before running `amble node`. Its outcomes, error, state protocols and utils are the node's contract with its tests and with every walk that uses it. If they turn out wrong, change them and the tests first, then the body.
+How to decide what a node is before running `ambler node`. Its outcomes, error, state protocols and utils are the node's contract with its tests and with every walk that uses it. If they turn out wrong, change them and the tests first, then the body.
 
 ## Reuse first
 
@@ -33,7 +33,7 @@ A node does one thing a spec can describe in a sentence or two. If the descripti
 - Every side effect goes through `self.utils`: printing, reading input, time, randomness, files, network, processes. `run` stays deterministic given its utils.
 - One method per effect, in the terms of the domain: `async def sleep(self, seconds: float) -> None`, `def read_line(self, message: str) -> str | None`.
 - A failure the node must handle is in the return type; an unexpected one raises (`OSError` and the like), and the method's docstring says so.
-- `SystemUtils` implements each method in a line or two. If that needs a package, is shared with another node or is long, it belongs in `utils/` (`amble help util`).
+- `SystemUtils` implements each method in a line or two. If that needs a package, is shared with another node or is long, it belongs in `utils/` (`ambler help util`).
 - A node with no side effects keeps its `Utils` protocol empty.
 
 ## The body

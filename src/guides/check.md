@@ -1,6 +1,6 @@
-# amble check
+# ambler check
 
-    amble check [--lint-only]
+    ambler check [--lint-only]
 
 Run it from the project root when the work is done. It checks the structural conventions and prints one line per violation:
 
@@ -26,4 +26,4 @@ If there are none, it runs `cargo fmt --check`, `cargo clippy --all-targets -- -
 - `spec-sections`: a spec has `# Program Specifications`, `## Nodes` and `## Shared State`, and no other sections.
 - `util-imports`: a utility imports nothing from `crate::nodes`, `crate::walks` or the engine.
 
-What it cannot check is yours: that outcomes name what happened, that tests cover every branch, that the spec's prose matches the code. See `amble help node-design`, `amble help testing` and `amble help spec`.
+What it cannot check is yours: that outcomes name what happened, that tests cover every branch, that the spec's prose matches the code. See `ambler help node-design`, `ambler help testing` and `ambler help spec`.

@@ -40,7 +40,7 @@ impl Utils for SystemUtils {
     }
 }
 
-/// Reads what `amble pave` was asked to do and checks the project can be paved.
+/// Reads what `ambler pave` was asked to do and checks the project can be paved.
 #[derive(Clone, Debug, Default)]
 pub struct PlanPave<U = SystemUtils> {
     utils: U,
@@ -74,7 +74,7 @@ impl<U: Utils> PlanPave<U> {
         let spec = settings.spec_path();
         if !self.utils.exists(&spec) {
             return Err(format!(
-                "no spec at {spec}: write it first (`amble help spec`)"
+                "no spec at {spec}: write it first (`ambler help spec`)"
             ));
         }
         let git_dir = self.utils.git_dir().ok_or(

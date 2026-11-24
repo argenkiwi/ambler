@@ -1,17 +1,17 @@
 # Program Specifications
 
-`amble pave <spec> [--agent '<command>'] [--max-iterations <n>] [--max-repairs <n>] [--dry-run]` implements `specs/<spec>.md` in the project in the current directory by running a coding agent in a loop, one narrow task per run: create or finish a node, wire the walk, or repair a failing check. It commits a checkpoint after every passing check and stops once the walk exists and the check passes.
+`ambler pave <spec> [--agent '<command>'] [--max-iterations <n>] [--max-repairs <n>] [--dry-run]` implements `specs/<spec>.md` in the project in the current directory by running a coding agent in a loop, one narrow task per run: create or finish a node, wire the walk, or repair a failing check. It commits a checkpoint after every passing check and stops once the walk exists and the check passes.
 
 ## Nodes
 
 ### Plan Pave
 - Initial node.
-- Reads the spec name, the agent command (from `--agent`, or else the `AMBLE_AGENT` environment variable), the limits and whether this is a dry run from the arguments, and where to keep the check log and, for a Rust project, the build output.
+- Reads the spec name, the agent command (from `--agent`, or else the `AMBLER_AGENT` environment variable), the limits and whether this is a dry run from the arguments, and where to keep the check log and, for a Rust project, the build output.
 - If everything fits, it transitions to `CHECK_PROJECT`.
 - If the arguments are invalid, no agent command is given outside a dry run, the spec does not exist, this is not an Ambler project of the target or not a git repository, it records why and transitions to `REPORT`.
 
 ### Check Project
-- Runs `amble check`, keeping its output in the log, and records whether it passed and the end of its output.
+- Runs `ambler check`, keeping its output in the log, and records whether it passed and the end of its output.
 - If it passes, it transitions to `CHECKPOINT`.
 - If it fails, it prints the last lines of the output and transitions to `CHOOSE_TASK`.
 - If the check cannot be run the program fails with that error.

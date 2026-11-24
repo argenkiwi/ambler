@@ -1,4 +1,4 @@
-//! Running other programs: a native CLI, amble itself and a coding agent.
+//! Running other programs: a native CLI, ambler itself and a coding agent.
 
 use std::fs::File;
 use std::io;
@@ -51,7 +51,7 @@ pub fn shell_with(command: &str, argument: &str) -> io::Result<bool> {
     Ok(Command::new("sh")
         .arg("-c")
         .arg(format!("{command} \"$1\""))
-        .arg("amble")
+        .arg("ambler")
         .arg(argument)
         .status()?
         .success())

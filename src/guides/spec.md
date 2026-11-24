@@ -1,6 +1,6 @@
-# amble spec
+# ambler spec
 
-Every walk has a plain-language spec at `specs/<walk>.md`, named after the walk in snake_case (`src/walks/<walk>.rs` in Rust, `walks/<walk>.ts` in TypeScript, `src/<package>/walks/<walk>.py` in Python). Write it before the code when planning; `amble walk` writes a starting point if there is none, and keeps one that exists.
+Every walk has a plain-language spec at `specs/<walk>.md`, named after the walk in snake_case (`src/walks/<walk>.rs` in Rust, `walks/<walk>.ts` in TypeScript, `src/<package>/walks/<walk>.py` in Python). Write it before the code when planning; `ambler walk` writes a starting point if there is none, and keeps one that exists.
 
 ## Format
 
@@ -33,4 +33,4 @@ Every walk has a plain-language spec at `specs/<walk>.md`, named after the walk 
 - Derive the shared state from what the nodes need. Do not design it first.
 - When a walk already exists, the spec follows the code; change both together.
 
-`amble check` verifies the sections and that the node headings match the walk's node ids. Whether the prose is true is yours to check.
+`ambler check` verifies the sections and that the node headings match the walk's node ids. Whether the prose is true is yours to check.

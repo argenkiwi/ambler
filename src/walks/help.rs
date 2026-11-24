@@ -1,4 +1,4 @@
-//! `amble help`: prints the general guide, or one topic's. See `specs/help.md`.
+//! `ambler help`: prints the general guide, or one topic's. See `specs/help.md`.
 
 use super::State;
 use crate::nodes::guide::{self, Guide};
@@ -54,7 +54,7 @@ where
     }
 }
 
-/// Runs `amble help [topic]`.
+/// Runs `ambler help [topic]`.
 ///
 /// # Errors
 ///
@@ -88,7 +88,7 @@ mod tests {
         let state = help(&fake, &["check"]).await;
 
         assert_eq!(state.message, None);
-        assert!(fake.printed()[0].starts_with("# amble check\n"));
+        assert!(fake.printed()[0].starts_with("# ambler check\n"));
         assert!(fake.eprinted().is_empty());
     }
 

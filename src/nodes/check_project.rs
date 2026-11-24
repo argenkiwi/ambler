@@ -7,22 +7,22 @@ use std::io;
 /// Where [`CheckProject`] leaves the walk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Outcome {
-    /// `amble check` passed.
+    /// `ambler check` passed.
     Passed,
-    /// `amble check` failed; the end of its output is recorded.
+    /// `ambler check` failed; the end of its output is recorded.
     Failed,
 }
 
 /// Why [`CheckProject`] could not complete.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("could not run `amble check`: {0}")]
+    #[error("could not run `ambler check`: {0}")]
     Io(#[from] io::Error),
 }
 
 /// The side effects [`CheckProject`] needs: one method each, mocked in the tests.
 pub trait Utils {
-    /// Runs `amble check` building in `target`, with its output in the file at `log`, and
+    /// Runs `ambler check` building in `target`, with its output in the file at `log`, and
     /// reports whether it passed.
     fn run_check(&self, log: &str, target: &str) -> io::Result<bool>;
     fn read(&self, path: &str) -> io::Result<String>;
@@ -51,7 +51,7 @@ impl Utils for SystemUtils {
     }
 }
 
-/// Runs `amble check` on the project and records whether it passed and how its output ends.
+/// Runs `ambler check` on the project and records whether it passed and how its output ends.
 #[derive(Clone, Debug, Default)]
 pub struct CheckProject<U = SystemUtils> {
     utils: U,
@@ -81,13 +81,13 @@ where
 
     async fn run(&self, state: &mut S) -> Result<Outcome, Error> {
         let paving = state.paving();
-        self.utils.print("[amble pave] amble check …");
+        self.utils.print("[ambler pave] ambler check …");
         let passed = self
             .utils
             .run_check(&paving.log, &paving.settings.build_dir)?;
         let output = self.utils.read(&paving.log)?;
         if !passed {
-            self.utils.eprint("[amble pave] amble check failed:");
+            self.utils.eprint("[ambler pave] ambler check failed:");
             self.utils.eprint(&tail(&output, FAILURE_LINES));
         }
         let paving = state.paving_mut();
@@ -108,7 +108,7 @@ mod tests {
     use crate::testing::{Fake, State};
     use std::collections::VecDeque;
 
-    const LOG: &str = ".git/amble-pave-check.log";
+    const LOG: &str = ".git/ambler-pave-check.log";
 
     fn state() -> State {
         State {

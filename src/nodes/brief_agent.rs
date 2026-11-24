@@ -114,10 +114,10 @@ where
             return Ok(Outcome::Previewed);
         }
         let command = paving.settings.agent.as_deref().ok_or(Error::NoAgent)?;
-        self.utils.print(&format!("[amble pave] agent: {label}"));
+        self.utils.print(&format!("[ambler pave] agent: {label}"));
         if !self.utils.agent(command, &prompt)? {
             self.utils.print(
-                "[amble pave] the agent exited with an error (continuing; the check decides)",
+                "[ambler pave] the agent exited with an error (continuing; the check decides)",
             );
         }
         let paving = state.paving_mut();
@@ -181,7 +181,7 @@ mod tests {
         assert!(prompt.contains("### Greet\n- Greets."));
         assert!(!prompt.contains("### Ask"));
         assert!(prompt.contains("does not exist yet"));
-        assert_eq!(fake.printed(), ["[amble pave] agent: node greet"]);
+        assert_eq!(fake.printed(), ["[ambler pave] agent: node greet"]);
         assert_eq!(state.paving.repairs, 0);
     }
 
@@ -193,7 +193,7 @@ mod tests {
         run(&fake, &mut state).await;
 
         let prompt = &fake.prompts()[0].1;
-        assert!(prompt.contains("`amble walk hello --nodes ask,greet`"));
+        assert!(prompt.contains("`ambler walk hello --nodes ask,greet`"));
         assert!(!prompt.contains("--edge"));
     }
 

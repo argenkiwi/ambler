@@ -62,7 +62,7 @@ where
             }
             None => {
                 *state.message_mut() = Some(format!(
-                    "amble: no verb or help topic called `{topic}`\ntopics: {}",
+                    "ambler: no verb or help topic called `{topic}`\ntopics: {}",
                     guides::TOPICS.join(", ")
                 ));
                 Outcome::Unknown
@@ -89,7 +89,7 @@ mod tests {
         let (outcome, _) = run(&fake, &[]).await;
 
         assert_eq!(outcome, Outcome::Printed);
-        assert!(fake.printed()[0].starts_with("# amble\n"));
+        assert!(fake.printed()[0].starts_with("# ambler\n"));
     }
 
     #[tokio::test]
@@ -99,7 +99,7 @@ mod tests {
         let (outcome, state) = run(&fake, &["walk"]).await;
 
         assert_eq!(outcome, Outcome::Printed);
-        assert!(fake.printed()[0].starts_with("# amble walk\n"));
+        assert!(fake.printed()[0].starts_with("# ambler walk\n"));
         assert_eq!(state.message, None);
     }
 

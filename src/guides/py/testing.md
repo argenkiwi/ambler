@@ -1,10 +1,10 @@
-# amble testing
+# ambler testing
 
 Tests are async pytest functions: `tests/nodes/test_<node>.py` for nodes, `tests/walks/test_<walk>.py` for walks. `asyncio_mode = "auto"` runs them without decorators.
 
 ## Nodes: test first
 
-`amble node` writes a `run` that raises `not yet implemented` and one failing test per outcome, plus one for the error of a fallible node.
+`ambler node` writes a `run` that raises `not yet implemented` and one failing test per outcome, plus one for the error of a fallible node.
 
 1. Finish the tests before the body. One test per branch: each outcome, the error, and each distinct way of reaching them.
 2. Run `uv run pytest tests/nodes/test_<name>.py`. Every test must fail with `not yet implemented`. A pyright error means the contract is wrong: fix the types, not the tests. A pass means the body does not raise.
@@ -31,7 +31,7 @@ Read the node, list its branches, and write the same kind of tests. They should 
 
 ## Walks: test the wiring
 
-`amble walk` writes a `Script` and one test.
+`ambler walk` writes a `Script` and one test.
 
 - Make `Script` take the inputs to play back (lists it pops from) and implement every node's `Utils`, recording what was printed or done.
 - Build the walk with the script, `Counter(start=Start(script), …)`, and run it with `await walk.run(Id.START, state)` down one path.

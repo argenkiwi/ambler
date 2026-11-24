@@ -1,6 +1,6 @@
 # Program Specifications
 
-`amble node`, `amble walk`, `amble util` and `amble check` hand the verb, with its arguments, to the native Ambler CLI of the project's target, and end with the exit code it ends with. amble does none of this work itself: each target's CLI scaffolds and checks its own language. See `docs/tooling_protocol.md`.
+`ambler node`, `ambler walk`, `ambler util` and `ambler check` hand the verb, with its arguments, to the native Ambler CLI of the project's target, and end with the exit code it ends with. ambler does none of this work itself: each target's CLI scaffolds and checks its own language. See `docs/tooling_protocol.md`.
 
 ## Nodes
 
@@ -20,5 +20,5 @@ The shared state consists of:
 - `target`: the language of the project.
 - `verb`: the verb handed to the CLI.
 - `args`: the arguments after the verb.
-- `exit_code`: the exit code amble ends with.
+- `exit_code`: the exit code ambler ends with.
 - `message`: why the verb could not be run, if it could not.

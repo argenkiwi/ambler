@@ -1,11 +1,11 @@
 //! The files every new project gets whatever its target: the agent context and the specs folder.
 //!
 //! The context files are this repository's own: the agent instructions a new project gets are
-//! the ones amble itself is developed under, so they must not depend on the target.
+//! the ones ambler itself is developed under, so they must not depend on the target.
 
 use super::Change;
 
-/// The always-loaded agent protocol. Also printed by `amble help agents`.
+/// The always-loaded agent protocol. Also printed by `ambler help agents`.
 pub const AGENTS: &str = include_str!("../../AGENTS.md");
 const CLAUDE: &str = include_str!("../../CLAUDE.md");
 /// The one skill that routes Ambler work to this command line.

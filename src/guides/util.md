@@ -1,6 +1,6 @@
-# amble util
+# ambler util
 
-    amble util <name>
+    ambler util <name>
 
 Writes `src/utils/<name>.rs` and registers it in `src/utils/mod.rs`. Run it from the project root.
 

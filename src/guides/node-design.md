@@ -1,6 +1,6 @@
-# amble node-design
+# ambler node-design
 
-How to decide what a node is before running `amble node`. The outcome, error, state and utils types are the node's contract with its tests and with every walk that uses it. If they turn out wrong, change them and the tests first, then the body.
+How to decide what a node is before running `ambler node`. The outcome, error, state and utils types are the node's contract with its tests and with every walk that uses it. If they turn out wrong, change them and the tests first, then the body.
 
 ## Reuse first
 
@@ -34,7 +34,7 @@ A node does one thing a spec can describe in a sentence or two. If the descripti
 - One method per effect, in the terms of the domain: `sleep(Duration)`, not `sleep(u64)`; `read_line(prompt)`, not `stdin()`.
 - Anything that can fail returns a `Result`.
 - An async util returns `impl Future<Output = T> + Send`, and the mock implements it with `async fn`.
-- `SystemUtils` implements each method in a line. If that needs a crate, is shared with another node or is long, it belongs in `src/utils/` (`amble help util`).
+- `SystemUtils` implements each method in a line. If that needs a crate, is shared with another node or is long, it belongs in `src/utils/` (`ambler help util`).
 - A node with no side effects at all may drop `Utils`, `SystemUtils` and the `utils` field, keeping a plain struct that derives `Default`.
 
 ## The body

@@ -1,6 +1,6 @@
-# amble conventions
+# ambler conventions
 
-Every convention of a TypeScript Ambler project, with why it is there. `amble check` enforces the structural ones.
+Every convention of a TypeScript Ambler project, with why it is there. `ambler check` enforces the structural ones.
 
 ## Nodes
 
@@ -33,5 +33,5 @@ Every convention of a TypeScript Ambler project, with why it is there. `amble ch
 
 ## Project
 
-- `tsc` runs in strict mode, and Biome's recommended rules and formatting are errors in `amble check`; `any` is an error.
+- `tsc` runs in strict mode, and Biome's recommended rules and formatting are errors in `ambler check`; `any` is an error.
 - Imports name their `.ts` extension.

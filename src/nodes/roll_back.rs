@@ -68,16 +68,16 @@ where
     async fn run(&self, state: &mut S) -> Result<Outcome, Error> {
         let paving = state.paving();
         let message = format!(
-            "amble-pave({}): failed {} after {} repairs",
+            "ambler-pave({}): failed {} after {} repairs",
             paving.settings.spec, paving.label, paving.repairs
         );
         if paving.settings.dry_run {
             self.utils
-                .print(&format!("[amble pave] dry run: would stash: {message}"));
+                .print(&format!("[ambler pave] dry run: would stash: {message}"));
         } else {
             self.utils.stash(&message)?;
             self.utils.print(&format!(
-                "[amble pave] rolled back to the last checkpoint (stashed: \"{message}\"); \
+                "[ambler pave] rolled back to the last checkpoint (stashed: \"{message}\"); \
                  retrying once"
             ));
         }
@@ -94,7 +94,7 @@ mod tests {
     use crate::scaffold::pave::{Paving, Settings};
     use crate::testing::{Fake, State};
 
-    const STASH: &str = "amble-pave(game): failed node report after 3 repairs";
+    const STASH: &str = "ambler-pave(game): failed node report after 3 repairs";
 
     fn state(dry_run: bool) -> State {
         State {
@@ -137,7 +137,7 @@ mod tests {
         assert!(fake.git().is_empty());
         assert_eq!(
             fake.printed(),
-            [format!("[amble pave] dry run: would stash: {STASH}")]
+            [format!("[ambler pave] dry run: would stash: {STASH}")]
         );
         assert!(state.paving.rolled_back);
     }

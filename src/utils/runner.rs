@@ -51,15 +51,15 @@ pub fn route(
 #[must_use]
 pub fn diagnostic(target: Target) -> String {
     match target {
-        Target::Rust => "amble: 'cargo-ambler' not found.\n\
+        Target::Rust => "ambler: 'cargo-ambler' not found.\n\
              Tip: Run 'cargo install --git https://github.com/argenkiwi/ambler-rs cargo-ambler' \
              to install it."
             .to_string(),
-        Target::TypeScript => "amble: 'ambler' script (cli.ts) not found in this project.\n\
+        Target::TypeScript => "ambler: 'ambler' script (cli.ts) not found in this project.\n\
              Tip: Did you run 'bun install' in this project? Run 'bun install' to install \
              project dependencies."
             .to_string(),
-        Target::Python { .. } => "amble: 'ambler-cli' not found in virtual environment.\n\
+        Target::Python { .. } => "ambler: 'ambler-cli' not found in virtual environment.\n\
              Tip: Did you run 'uv sync' in this project? Run 'uv sync' to install project \
              dependencies."
             .to_string(),
@@ -158,7 +158,7 @@ mod tests {
         assert!(diagnostic(Target::TypeScript).contains("bun install"));
         assert_eq!(
             diagnostic(PY),
-            "amble: 'ambler-cli' not found in virtual environment.\nTip: Did you run 'uv sync' \
+            "ambler: 'ambler-cli' not found in virtual environment.\nTip: Did you run 'uv sync' \
              in this project? Run 'uv sync' to install project dependencies."
         );
     }

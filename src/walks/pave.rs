@@ -1,4 +1,4 @@
-//! `amble pave`: implements a spec by running a coding agent in a loop, one narrow task per
+//! `ambler pave`: implements a spec by running a coding agent in a loop, one narrow task per
 //! run, with a git checkpoint after every passing check. See `specs/pave.md`.
 
 use super::State;
@@ -103,7 +103,7 @@ where
     }
 }
 
-/// Runs `amble pave <spec> …`.
+/// Runs `ambler pave <spec> …`.
 ///
 /// # Errors
 ///
@@ -119,7 +119,7 @@ pub async fn run(target: Target, args: Vec<String>) -> Result<(), Error> {
 mod tests {
     use super::*;
 
-    /// What `amble node` leaves in a Rust node until it is written.
+    /// What `ambler node` leaves in a Rust node until it is written.
     const UNFINISHED: &str = concat!("todo", "!(");
     use crate::testing::Fake;
     use std::collections::VecDeque;
@@ -165,7 +165,7 @@ mod tests {
     fn labels(fake: &Fake) -> Vec<String> {
         fake.printed()
             .into_iter()
-            .filter_map(|line| Some(line.strip_prefix("[amble pave] agent: ")?.to_string()))
+            .filter_map(|line| Some(line.strip_prefix("[ambler pave] agent: ")?.to_string()))
             .collect()
     }
 
@@ -200,15 +200,15 @@ mod tests {
         assert_eq!(
             fake.git(),
             [
-                "commit amble-pave(hello): node ask",
-                "commit amble-pave(hello): node greet",
-                "commit amble-pave(hello): walk hello",
+                "commit ambler-pave(hello): node ask",
+                "commit ambler-pave(hello): node greet",
+                "commit ambler-pave(hello): walk hello",
             ]
         );
         assert!(
             fake.prompts()[2]
                 .1
-                .contains("## Last `amble check` output\n```\ntodo")
+                .contains("## Last `ambler check` output\n```\ntodo")
         );
         assert!(fake.printed().last().unwrap().contains("done"));
     }
@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(labels(&fake), ["node ask", "repair", "repair"]);
         assert_eq!(
             fake.git(),
-            ["stash amble-pave(hello): failed repair after 1 repairs"]
+            ["stash ambler-pave(hello): failed repair after 1 repairs"]
         );
         assert!(state.message.is_some());
         assert!(fake.eprinted().last().unwrap().contains("still failing"));
@@ -274,7 +274,7 @@ mod tests {
         let state = pave(&fake, &["hello"]).await;
 
         assert!(state.finish().is_err());
-        assert!(fake.eprinted()[0].contains("AMBLE_AGENT"));
+        assert!(fake.eprinted()[0].contains("AMBLER_AGENT"));
         assert!(fake.printed().is_empty());
     }
 }

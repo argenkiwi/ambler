@@ -1,4 +1,4 @@
-//! `amble new`: creates a project. See `specs/new.md`.
+//! `ambler new`: creates a project. See `specs/new.md`.
 
 use super::State;
 use crate::nodes::plan_project::{self, PlanProject};
@@ -62,7 +62,7 @@ where
     }
 }
 
-/// Runs `amble new [<name>] [--example]`.
+/// Runs `ambler new [<name>] [--example]`.
 ///
 /// # Errors
 ///
@@ -152,22 +152,22 @@ mod tests {
         assert!(state.finish().is_err());
         assert_eq!(
             fake.eprinted(),
-            ["usage: amble new [<name>] [--example] [--target rust|ts|py]"]
+            ["usage: ambler new [<name>] [--example] [--target rust|ts|py]"]
         );
         assert!(fake.paths().is_empty());
         assert!(fake.printed().is_empty());
     }
 
-    /// End to end against the real file system and cargo: the example project `amble new`
-    /// writes builds, passes its tests and passes `amble check`.
+    /// End to end against the real file system and cargo: the example project `ambler new`
+    /// writes builds, passes its tests and passes `ambler check`.
     #[tokio::test]
     #[ignore = "slow: builds a generated project with cargo"]
     async fn the_generated_example_project_passes_its_own_checks() {
         use std::process::Command;
 
-        let folder = std::env::temp_dir().join(format!("amble-e2e-{}", std::process::id()));
+        let folder = std::env::temp_dir().join(format!("ambler-e2e-{}", std::process::id()));
         std::fs::create_dir_all(&folder).unwrap();
-        let amble = |args: &[&str], within: &std::path::Path| {
+        let ambler = |args: &[&str], within: &std::path::Path| {
             let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
             let status = Command::new("cargo")
                 .args(["run", "--quiet", "--manifest-path", manifest, "--"])
@@ -175,17 +175,17 @@ mod tests {
                 .current_dir(within)
                 .status()
                 .unwrap();
-            assert!(status.success(), "amble {args:?} failed");
+            assert!(status.success(), "ambler {args:?} failed");
         };
 
-        amble(&["new", "demo", "--example"], &folder);
-        amble(&["check"], &folder.join("demo"));
+        ambler(&["new", "demo", "--example"], &folder);
+        ambler(&["check"], &folder.join("demo"));
 
         std::fs::remove_dir_all(&folder).unwrap();
     }
 
     /// End to end against the real file system and Bun: a TypeScript example project passes
-    /// `amble check` without `--target`, and a node and walk added with amble pass it once
+    /// `ambler check` without `--target`, and a node and walk added with ambler pass it once
     /// written.
     #[tokio::test]
     #[ignore = "slow: installs and checks a generated project with bun"]
@@ -193,10 +193,10 @@ mod tests {
         use std::path::Path;
         use std::process::Command;
 
-        let folder = std::env::temp_dir().join(format!("amble-e2e-ts-{}", std::process::id()));
+        let folder = std::env::temp_dir().join(format!("ambler-e2e-ts-{}", std::process::id()));
         std::fs::create_dir_all(&folder).unwrap();
         let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
-        let amble = |args: &[&str], within: &Path| {
+        let ambler = |args: &[&str], within: &Path| {
             Command::new("cargo")
                 .args(["run", "--quiet", "--manifest-path", manifest, "--"])
                 .args(args)
@@ -209,7 +209,7 @@ mod tests {
         let demo = folder.join("demo");
         let write = |path: &str, contents: &str| std::fs::write(demo.join(path), contents).unwrap();
 
-        assert!(amble(
+        assert!(ambler(
             &["new", "demo", "--example", "--target", "ts"],
             &folder
         ));
@@ -219,9 +219,9 @@ mod tests {
             .status()
             .unwrap();
         assert!(installed.success());
-        assert!(amble(&["check"], &demo), "the example fails its checks");
+        assert!(ambler(&["check"], &demo), "the example fails its checks");
 
-        assert!(amble(
+        assert!(ambler(
             &[
                 "node",
                 "greet",
@@ -232,11 +232,11 @@ mod tests {
             ],
             &demo
         ));
-        assert!(amble(
+        assert!(ambler(
             &["node", "bye", "--terminal", "--state", "name"],
             &demo
         ));
-        assert!(amble(
+        assert!(ambler(
             &[
                 "walk",
                 "hello",
@@ -248,7 +248,7 @@ mod tests {
             &demo
         ));
         assert!(
-            !amble(&["check", "--lint-only"], &demo),
+            !ambler(&["check", "--lint-only"], &demo),
             "unfinished code passes"
         );
 
@@ -322,24 +322,24 @@ mod tests {
             .status()
             .unwrap();
         assert!(biome.success());
-        assert!(amble(&["check"], &demo), "the finished node and walk fail");
+        assert!(ambler(&["check"], &demo), "the finished node and walk fail");
 
         std::fs::remove_dir_all(&folder).unwrap();
     }
 
-    /// End to end against the real file system and uv: a Python example project passes `amble
+    /// End to end against the real file system and uv: a Python example project passes `ambler
     /// check` (ruff, pyright, pytest) without `--target`, generated nodes fail their tests with
-    /// `not yet implemented`, and a node and walk added with amble pass once written.
+    /// `not yet implemented`, and a node and walk added with ambler pass once written.
     #[tokio::test]
     #[ignore = "slow: syncs and checks a generated project with uv"]
     async fn a_generated_python_project_passes_its_own_checks() {
         use std::path::Path;
         use std::process::Command;
 
-        let folder = std::env::temp_dir().join(format!("amble-e2e-py-{}", std::process::id()));
+        let folder = std::env::temp_dir().join(format!("ambler-e2e-py-{}", std::process::id()));
         std::fs::create_dir_all(&folder).unwrap();
         let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
-        let amble = |args: &[&str], within: &Path| {
+        let ambler = |args: &[&str], within: &Path| {
             Command::new("cargo")
                 .args(["run", "--quiet", "--manifest-path", manifest, "--"])
                 .args(args)
@@ -359,14 +359,14 @@ mod tests {
         };
         let write = |path: &str, contents: &str| std::fs::write(demo.join(path), contents).unwrap();
 
-        assert!(amble(
+        assert!(ambler(
             &["new", "demo-app", "--example", "--target", "py"],
             &folder
         ));
         assert!(uv(&["sync"]).status.success());
-        assert!(amble(&["check"], &demo), "the example fails its checks");
+        assert!(ambler(&["check"], &demo), "the example fails its checks");
 
-        assert!(amble(
+        assert!(ambler(
             &[
                 "node",
                 "greet",
@@ -378,11 +378,11 @@ mod tests {
             ],
             &demo
         ));
-        assert!(amble(
+        assert!(ambler(
             &["node", "bye", "--terminal", "--state", "name"],
             &demo
         ));
-        assert!(amble(
+        assert!(ambler(
             &[
                 "walk",
                 "hello",
@@ -394,7 +394,7 @@ mod tests {
             &demo
         ));
         assert!(
-            !amble(&["check", "--lint-only"], &demo),
+            !ambler(&["check", "--lint-only"], &demo),
             "unfinished code passes"
         );
         let red = uv(&["run", "pytest", "tests/nodes/test_greet.py"]);
@@ -475,7 +475,7 @@ mod tests {
                  assert state.name == \"world\"\n    \
                  assert script.printed == [\"Bye, world\"]\n",
         );
-        assert!(amble(&["check"], &demo), "the finished node and walk fail");
+        assert!(ambler(&["check"], &demo), "the finished node and walk fail");
 
         std::fs::remove_dir_all(&folder).unwrap();
     }

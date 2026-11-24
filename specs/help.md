@@ -1,6 +1,6 @@
 # Program Specifications
 
-`amble help [topic]` prints a guide. It also runs when amble is given no verb, and when it is given a verb it does not know.
+`ambler help [topic]` prints a guide. It also runs when ambler is given no verb, and when it is given a verb it does not know.
 
 ## Nodes
 

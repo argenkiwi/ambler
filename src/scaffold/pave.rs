@@ -1,25 +1,25 @@
-//! What `amble pave` decides and says: the settings, the next task, the guards that bound the
+//! What `ambler pave` decides and says: the settings, the next task, the guards that bound the
 //! loop and the prompt for each task. No I/O: the nodes read the files and pass them in.
 
 use super::target::Target;
 use super::{args, names};
 
-pub const USAGE: &str = "usage: amble pave <spec> [--agent '<command>'] [--max-iterations <n>] \
+pub const USAGE: &str = "usage: ambler pave <spec> [--agent '<command>'] [--max-iterations <n>] \
                          [--max-repairs <n>] [--dry-run]";
 /// The environment variable that holds the agent command when `--agent` is not given.
-pub const AGENT_VAR: &str = "AMBLE_AGENT";
+pub const AGENT_VAR: &str = "AMBLER_AGENT";
 /// The environment variable that overrides where pave's own Rust checks build.
-pub const BUILD_VAR: &str = "AMBLE_PAVE_TARGET";
-pub const DEFAULT_BUILD_DIR: &str = "target/amble-pave";
+pub const BUILD_VAR: &str = "AMBLER_PAVE_TARGET";
+pub const DEFAULT_BUILD_DIR: &str = "target/ambler-pave";
 /// The name of the check log, kept in the git folder so it is never committed.
-pub const LOG_NAME: &str = "amble-pave-check.log";
+pub const LOG_NAME: &str = "ambler-pave-check.log";
 /// How many lines of the check output a prompt carries, and how many a failure prints.
 pub const PROMPT_LINES: usize = 80;
 pub const FAILURE_LINES: usize = 15;
 /// How many times in a row the same task may be chosen while the check passes.
 const REPEATS: usize = 3;
 
-/// What `amble pave` was asked to do.
+/// What `ambler pave` was asked to do.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Settings {
     /// The language of the project.
@@ -380,7 +380,7 @@ impl Brief<'_> {
             String::new()
         } else {
             format!(
-                "\n## Last `amble check` output\n```\n{}\n```\n",
+                "\n## Last `ambler check` output\n```\n{}\n```\n",
                 tail(self.output, PROMPT_LINES)
             )
         }
@@ -397,7 +397,7 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
     let engine = target.engine();
     let file = if exists {
         format!(
-            "`{path}` already exists (an earlier run was interrupted). Do NOT run `amble node` \
+            "`{path}` already exists (an earlier run was interrupted). Do NOT run `ambler node` \
              again: read the file and finish it."
         )
     } else {
@@ -409,7 +409,7 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
              `--state <field>` instead of redeclaring them"
                 .to_string(),
             format!(
-                "`amble node {name} (--outcomes <a,b> | --terminal) [--fallible] [--state \
+                "`ambler node {name} (--outcomes <a,b> | --terminal) [--fallible] [--state \
                  <field>[:<Type>]]...`"
             ),
             "Give `Utils` one method per side effect and implement each in `SystemUtils`.",
@@ -420,7 +420,7 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
              and reuse a field with `--state <field>`, which takes the same type"
                 .to_string(),
             format!(
-                "`amble node {name} (--outcomes <a,b> | --terminal) [--state \
+                "`ambler node {name} (--outcomes <a,b> | --terminal) [--state \
                  <field>[:<Type>]]...`"
             ),
             "Give `Utils` one function per side effect and implement each in `defaultUtils`.",
@@ -433,7 +433,7 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
                 target.nodes_folder()
             ),
             format!(
-                "`amble node {name} (--outcomes <a,b> | --terminal) [--fallible] [--state \
+                "`ambler node {name} (--outcomes <a,b> | --terminal) [--fallible] [--state \
                  <field>[:<Type>]]...`"
             ),
             "Give the `Utils` protocol one method per side effect and implement each in \
@@ -456,13 +456,13 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
          - {file}\n\
          \n\
          ## Steps\n\
-         1. Run `amble help node-design` and `amble help testing`.\n\
+         1. Run `ambler help node-design` and `ambler help testing`.\n\
          2. If the file does not exist: {create}. Outcomes name what happened (not the next \
          node); the spec's transitions tell you how many there are.\n\
          3. {utils}\n\
          4. Write the tests, run `{test}` and see them fail with `not yet implemented`.\n\
          5. Implement {implement} without changing the tests, until `{test}` passes.\n\
-         6. Replace the TODO doc comments, then run `amble check` and fix anything it reports \
+         6. Replace the TODO doc comments, then run `ambler check` and fix anything it reports \
          about this node.\n\
          {output}",
         section = node_section(brief.spec, name),
@@ -485,12 +485,12 @@ pub fn walk_prompt(brief: &Brief, exists: bool) -> String {
     };
     let wire = if exists {
         format!(
-            "`{walk_path}` already exists (an earlier run was interrupted). Do NOT run `amble \
+            "`{walk_path}` already exists (an earlier run was interrupted). Do NOT run `ambler \
              walk` again: replace its remaining {unwired} following the spec's transitions."
         )
     } else {
         format!(
-            "Run `amble walk {spec} --nodes {nodes}`. It wires the nodes and leaves each \
+            "Run `ambler walk {spec} --nodes {nodes}`. It wires the nodes and leaves each \
              transition to wire as {unwired}: replace them following the spec's transitions.",
             nodes = spec_nodes(brief.spec).join(","),
         )
@@ -503,11 +503,11 @@ pub fn walk_prompt(brief: &Brief, exists: bool) -> String {
          {text}\n\
          \n\
          ## Steps\n\
-         1. Run `amble help walk`, and read each node in `{folder}/` for the outcomes it reports.\n\
+         1. Run `ambler help walk`, and read each node in `{folder}/` for the outcomes it reports.\n\
          2. {wire}\n\
          3. Finish the wiring test in `{test_path}` so it walks the main paths of the spec.\n\
          4. Keep `{spec_path}` true: its `###` headings must match the walk's nodes.\n\
-         5. Run `amble check` and fix everything it reports.\n\
+         5. Run `ambler check` and fix everything it reports.\n\
          {output}",
         text = brief.spec.trim_end(),
         folder = target.nodes_folder(),
@@ -519,13 +519,13 @@ pub fn walk_prompt(brief: &Brief, exists: bool) -> String {
 #[must_use]
 pub fn repair_prompt(brief: &Brief, status: &str) -> String {
     format!(
-        "`amble check` is failing in this Ambler project. Your only task is to make it pass \
+        "`ambler check` is failing in this Ambler project. Your only task is to make it pass \
          again.\n\
          Fix the code, not the conventions: do not delete tests or weaken what passing tests \
          assert, do not touch `{engine}`, and do not start new nodes or walks.\n\
-         Run `amble help check` if a rule is unclear, and re-run `amble check` until it passes.\n\
+         Run `ambler help check` if a rule is unclear, and re-run `ambler check` until it passes.\n\
          \n\
-         ## Last `amble check` output\n\
+         ## Last `ambler check` output\n\
          ```\n{output}\n```\n\
          \n\
          ## Uncommitted changes (since the last passing checkpoint)\n\
@@ -734,7 +734,7 @@ mod tests {
                 max_repairs: 2,
                 ..settings_for("game")
             },
-            log: ".git/amble-pave-check.log".to_string(),
+            log: ".git/ambler-pave-check.log".to_string(),
             passed: true,
             ..Paving::default()
         }
@@ -765,7 +765,7 @@ mod tests {
             panic!("expected to stop");
         };
         assert!(reason.contains("git stash list"));
-        assert!(reason.contains(".git/amble-pave-check.log"));
+        assert!(reason.contains(".git/ambler-pave-check.log"));
     }
 
     #[test]
@@ -836,9 +836,9 @@ mod tests {
         assert!(prompt.contains("- `board`: the cells."));
         assert!(prompt.contains("Shared state: src/nodes/mod.rs declares the state traits"));
         assert!(prompt.contains("does not exist yet"));
-        assert!(prompt.contains("`amble node report (--outcomes"));
+        assert!(prompt.contains("`ambler node report (--outcomes"));
         assert!(prompt.contains("`cargo test nodes::report::`"));
-        assert!(!prompt.contains("amble check` output"));
+        assert!(!prompt.contains("ambler check` output"));
     }
 
     #[test]
@@ -868,8 +868,8 @@ mod tests {
 
         let prompt = node_prompt(&brief(&settings, false), "report", true);
 
-        assert!(prompt.contains("Do NOT run `amble node` again"));
-        assert!(prompt.contains("## Last `amble check` output\n```\nsrc/nodes/report.rs:3"));
+        assert!(prompt.contains("Do NOT run `ambler node` again"));
+        assert!(prompt.contains("## Last `ambler check` output\n```\nsrc/nodes/report.rs:3"));
     }
 
     #[test]
@@ -880,11 +880,11 @@ mod tests {
 
         assert!(prompt.contains("## The spec\n# Program Specifications"));
         assert!(prompt.contains("read each node in `src/nodes/`"));
-        assert!(prompt.contains("`amble walk game --nodes read_move,report`"));
+        assert!(prompt.contains("`ambler walk game --nodes read_move,report`"));
         assert!(!prompt.contains("--edge"));
 
         let resumed = walk_prompt(&brief(&settings, false), true);
-        assert!(resumed.contains("Do NOT run `amble walk` again"));
+        assert!(resumed.contains("Do NOT run `ambler walk` again"));
         assert!(resumed.contains("`cargo test` failed"));
     }
 

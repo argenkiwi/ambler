@@ -43,13 +43,13 @@ pub enum Error {
 pub(crate) struct State {
     /// The language of the project being made or worked on.
     pub target: Target,
-    /// The verb handed to the native CLI; empty for the verbs amble does itself.
+    /// The verb handed to the native CLI; empty for the verbs ambler does itself.
     pub verb: String,
     pub args: Vec<String>,
-    /// The exit code `amble` ends with when a verb is handed to the native CLI.
+    /// The exit code `ambler` ends with when a verb is handed to the native CLI.
     pub exit_code: u8,
     pub plan: Plan,
-    /// The `amble pave` loop; the other verbs leave it at its default.
+    /// The `ambler pave` loop; the other verbs leave it at its default.
     pub paving: Paving,
     pub message: Option<String>,
 }

@@ -1,10 +1,10 @@
-# amble testing
+# ambler testing
 
 Tests are `bun:test` files: `nodes/tests/<node>.test.ts` for nodes, `walks/tests/<walk>.test.ts` for walks.
 
 ## Nodes: test first
 
-`amble node` writes a factory that throws `not yet implemented` and one failing test per edge.
+`ambler node` writes a factory that throws `not yet implemented` and one failing test per edge.
 
 1. Finish the tests before the body. One test per branch: each edge, and each distinct way of reaching it.
 2. Run `bun test nodes/tests/<name>.test.ts`. Every test must fail with `not yet implemented`. A type error means the contract is wrong: fix the types, not the tests. A pass means the body does not throw.
@@ -31,7 +31,7 @@ Read the node, list its branches, and write the same kind of tests. They should 
 
 ## Walks: test the wiring
 
-`amble walk` writes a `script()` that returns the `WalkUtils` and one test.
+`ambler walk` writes a `script()` that returns the `WalkUtils` and one test.
 
 - Make `script()` take the inputs to play back (arrays it shifts from) and return the utils of every node, plus arrays of what was printed or done.
 - Run the walk with `walk(createWalk(utils), "<START>", state)` down one path.

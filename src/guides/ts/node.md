@@ -1,8 +1,8 @@
-# amble node
+# ambler node
 
-    amble node <name> (--outcomes <a,b> | --terminal) [--state <field>[:<Type>]]...
+    ambler node <name> (--outcomes <a,b> | --terminal) [--state <field>[:<Type>]]...
 
-Writes `nodes/<name>.ts` and its tests, `nodes/tests/<name>.test.ts`. Run it from the project root. Decide the flags with `amble help node-design` first: they are the node's contract.
+Writes `nodes/<name>.ts` and its tests, `nodes/tests/<name>.test.ts`. Run it from the project root. Decide the flags with `ambler help node-design` first: they are the node's contract.
 
 - `<name>`: snake_case or kebab-case, no `-node` suffix. Files are kebab-case.
 - `--outcomes success,invalid_input`: one edge per thing that can happen, named `onSuccess`, `onInvalidInput`. The walk wires each one to a successor.
@@ -20,7 +20,7 @@ What you get:
 What is left to you, in this order:
 
 1. Give `Utils` one function per side effect and implement each in `defaultUtils`.
-2. Finish the tests: rename them, set up state and utils, assert the next id and the new state (`amble help testing`).
+2. Finish the tests: rename them, set up state and utils, assert the next id and the new state (`ambler help testing`).
 3. Run `bun test nodes/tests/<name>.test.ts` and see them fail with `not yet implemented`.
 4. Implement the factory, using the utils it is given. Do not change the tests while doing so.
 5. Replace the `TODO` doc comments.

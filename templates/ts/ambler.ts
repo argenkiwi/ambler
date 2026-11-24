@@ -84,14 +84,14 @@ export class WalkError<K extends string = string> extends Error {
 /**
  * Runs a walk from `start` until a node returns `null` as its next ID.
  *
- * @param amble The runner returned by {@link ambler}.
+ * @param ambler The runner returned by {@link ambler}.
  * @param start The ID of the first node to run.
  * @param state The initial state.
  * @returns The final state.
  * @throws {WalkError} If any node throws.
  */
 export async function walk<S, K extends string>(
-  amble: (nodeId: K, state: S) => Next<S, K> | Promise<Next<S, K>>,
+  ambler: (nodeId: K, state: S) => Next<S, K> | Promise<Next<S, K>>,
   start: K,
   state: S,
 ): Promise<S> {
@@ -99,7 +99,7 @@ export async function walk<S, K extends string>(
   while (nodeId !== null) {
     const current: K = nodeId;
     try {
-      [nodeId, state] = await amble(current, state);
+      [nodeId, state] = await ambler(current, state);
     } catch (cause) {
       throw new WalkError(current, cause);
     }

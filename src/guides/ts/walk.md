@@ -1,8 +1,8 @@
-# amble walk
+# ambler walk
 
-    amble walk <name> --nodes <start,next,...> [--edge <node>.<Outcome>=<node|halt>]... [--no-runner]
+    ambler walk <name> --nodes <start,next,...> [--edge <node>.<Outcome>=<node|halt>]... [--no-runner]
 
-Wires existing nodes into `walks/<name>.ts`. Run it from the project root, after the nodes exist: it reads their edges, state and utils from `nodes/`. If a node is missing it lists the `amble node` commands to run first.
+Wires existing nodes into `walks/<name>.ts`. Run it from the project root, after the nodes exist: it reads their edges, state and utils from `nodes/`. If a node is missing it lists the `ambler node` commands to run first.
 
 - `--nodes start,count,stop`: the nodes of the walk. The first is where it starts.
 - `--edge start.success=count`: where an edge leads, by its outcome (`success`) or its name (`onSuccess`). Repeat it, or separate edges with commas. `=halt` wires the edge to `null`, which ends the walk.
@@ -19,7 +19,7 @@ What it writes:
   - `createWalk(utils)`, which wires each node's edges with `ambler()`. Nodes are imported with `import defer`, so each loads when first reached.
   - An `import.meta.main` block that runs the walk from an initial state.
 - `walks/tests/<name>.test.ts`, with a `script()` to fill in and one test.
-- `specs/<name>.md`, if there is none, with a section per node (`amble help spec`).
+- `specs/<name>.md`, if there is none, with a section per node (`ambler help spec`).
 - A `<name>` script in `package.json`: run it with `bun run <name>`.
 
 ## Rules for a walk
@@ -34,8 +34,8 @@ What it writes:
 ## After generating
 
 1. Wire the remaining `unwired(…)` edges, then delete `unwired`.
-2. Finish `script()` and the wiring test, one test per path (`amble help testing`).
+2. Finish `script()` and the wiring test, one test per path (`ambler help testing`).
 3. Fill in the spec.
-4. Run it, then `amble check`.
+4. Run it, then `ambler check`.
 
 Changing a walk later (adding a node, moving an edge) is an edit by hand: add the imports, the `NodeId`, the `WalkUtils` field and the entry; `tsc` points at each one you miss. Update the spec in the same change.

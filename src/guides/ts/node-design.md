@@ -1,6 +1,6 @@
-# amble node-design
+# ambler node-design
 
-How to decide what a node is before running `amble node`. The state, edges and utils types are the node's contract with its tests and with every walk that uses it. If they turn out wrong, change them and the tests first, then the body.
+How to decide what a node is before running `ambler node`. The state, edges and utils types are the node's contract with its tests and with every walk that uses it. If they turn out wrong, change them and the tests first, then the body.
 
 ## Reuse first
 
@@ -26,7 +26,7 @@ A node does one thing a spec can describe in a sentence or two. If the descripti
 ## State
 
 - `State` lists only the fields the node reads or writes, with their types: `count: number`.
-- Reuse the field name and type another node already gives it (`amble node … --state count`).
+- Reuse the field name and type another node already gives it (`ambler node … --state count`).
 - Return a new object: `{ ...state, count: state.count + 1 }`.
 
 ## Utils
@@ -34,7 +34,7 @@ A node does one thing a spec can describe in a sentence or two. If the descripti
 - Every side effect goes through `utils`: printing, reading input, time, randomness, files, network, processes. The factory itself stays pure and deterministic given its utils.
 - One function per effect, in the terms of the domain: `sleep: (ms: number) => Promise<void>`, `readLine: (prompt: string) => string | null`.
 - A failure the node must handle is in the return type; an unexpected one throws.
-- `defaultUtils` implements each function in a line. If that needs a package, is shared with another node or is long, it belongs in `utils/` (`amble help util`).
+- `defaultUtils` implements each function in a line. If that needs a package, is shared with another node or is long, it belongs in `utils/` (`ambler help util`).
 - A node with no side effects keeps `Utils = Record<string, never>`.
 
 ## The body
