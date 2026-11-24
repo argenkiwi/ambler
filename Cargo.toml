@@ -7,13 +7,6 @@ license = "MIT"
 description = "Scaffolds and checks Ambler projects"
 
 [dependencies]
-oxc_allocator = "0.75.0"
-oxc_ast = "0.75.0"
-oxc_parser = "0.75.0"
-oxc_span = "0.75.0"
-proc-macro2 = { version = "1", features = ["span-locations"] }
-rustpython-parser = "0.4"
-syn = { version = "2", features = ["full", "visit"] }
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 

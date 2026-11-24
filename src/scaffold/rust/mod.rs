@@ -1,5 +1,3 @@
-//! The Rust target: the files of a new ambler-rs project, and the reading `amble pave` needs.
+//! The Rust target: the files of a new ambler-rs project.
 
 pub mod project;
-pub mod register;
-pub mod source;

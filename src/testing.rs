@@ -267,9 +267,6 @@ impl brief_agent::Utils for &Fake {
     fn read(&self, path: &str) -> io::Result<String> {
         Fake::read(self, path)
     }
-    fn entries(&self, path: &str) -> io::Result<Vec<String>> {
-        plan_project::Utils::entries(self, path)
-    }
     fn status(&self) -> io::Result<String> {
         self.git_runs()?;
         Ok(if *self.dirty.lock().unwrap() {
