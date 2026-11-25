@@ -305,6 +305,9 @@ impl delegate::Utils for &Fake {
     fn exists(&self, path: &str) -> bool {
         Fake::exists(self, path)
     }
+    fn read(&self, path: &str) -> Option<String> {
+        self.file(path)
+    }
     fn installed(&self, program: &str) -> bool {
         self.programs.contains(&program)
     }

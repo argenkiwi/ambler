@@ -14,7 +14,7 @@ Each target repository exposes a command-line runner through its standard packag
 
 | Target | Native Tool | Invocation by `ambler` |
 |---|---|---|
-| **Rust** (`ambler-rs`) | `ambler` crate: `ambler::cli::run`, run by the project's `xtask` behind a `cargo ambler` alias (or the `cargo-ambler` binary) | `cargo ambler <command>` |
+| **Rust** (`ambler-rs`) | `ambler` crate: `ambler::cli::run`, run by the project's `xtask` behind a `cargo ambler` alias (or any `ambler` alias in `.cargo/config.toml`, or the `cargo-ambler` binary) | `cargo ambler <command>` |
 | **TypeScript** (`ambler-ts`) | `ambler` package: a dev dependency whose `ambler` bin lives in `node_modules/.bin` (not a PATH binary) | `bun node_modules/.bin/ambler <command>` (never `bun run ambler` without an `ambler` script: `bun run` prefers the project's own `ambler.ts` to the bin, runs the library and exits 0) |
 | **Python** (`ambler-py`) | `ambler` package: a dev dependency whose `ambler` script lives in `.venv/bin` (not a PATH binary); `ambler-cli` is a deprecated alias | `uv run ambler <command>` |
 | **Kotlin** (`ambler-kt`) | Kotlin wrapper script / Gradle task | `./kotlin ambler <command>` |

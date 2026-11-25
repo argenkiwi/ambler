@@ -74,18 +74,25 @@ impl Target {
     }
 
     /// Whether the project in the current folder can run its native CLI: `exists` tells which
-    /// files it has and `installed` which programs are on the `PATH`.
+    /// files it has, `read` gives a file's contents (or `None` if it is not there) and
+    /// `installed` tells which programs are on the `PATH`.
     #[must_use]
     pub fn has_native_runner(
         self,
         exists: impl Fn(&str) -> bool,
+        read: impl Fn(&str) -> Option<String>,
         installed: impl Fn(&str) -> bool,
     ) -> bool {
         match self {
-            // An `xtask` crate (with the `cargo ambler` alias) or a globally installed
-            // `cargo-ambler`.
+            // A `cargo ambler` alias in the project's Cargo config (the `xtask` template's, or
+            // one that runs the CLI some other way), an `xtask` crate (projects whose alias is
+            // elsewhere) or a globally installed `cargo-ambler`.
             Self::Rust => {
-                installed("cargo") && (exists("xtask/Cargo.toml") || installed("cargo-ambler"))
+                let alias = [".cargo/config.toml", ".cargo/config"]
+                    .iter()
+                    .any(|path| read(path).is_some_and(|text| has_cargo_alias(&text, "ambler")));
+                installed("cargo")
+                    && (alias || exists("xtask/Cargo.toml") || installed("cargo-ambler"))
             }
             // `cli.ts` is the CLI that projects made before it became a dependency carry.
             Self::TypeScript => {
@@ -287,6 +294,45 @@ pub fn pyproject_name(text: &str) -> Option<String> {
     None
 }
 
+/// Whether a Cargo config file defines the alias `name`, under `[alias]` or as `alias.<name>`.
+#[must_use]
+pub fn has_cargo_alias(config: &str, name: &str) -> bool {
+    let is_key = |key: &str| {
+        let key = key.trim();
+        key == name || key.strip_prefix('"').and_then(|k| k.strip_suffix('"')) == Some(name)
+    };
+    let mut table = String::new();
+    for line in config.lines() {
+        let line = line.trim();
+        if line.starts_with('#') {
+            continue;
+        }
+        if let Some(header) = line.strip_prefix('[') {
+            table = header
+                .split(']')
+                .next()
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+        } else if let Some((key, _)) = line.split_once('=') {
+            let key = key.trim();
+            let found = if table == "alias" {
+                is_key(key)
+            } else {
+                table.is_empty()
+                    && key
+                        .strip_prefix("alias")
+                        .and_then(|rest| rest.trim_start().strip_prefix('.'))
+                        .is_some_and(is_key)
+            };
+            if found {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// A package name that lives as long as the run: there is one per invocation.
 fn intern(package: String) -> &'static str {
     Box::leak(package.into_boxed_str())
@@ -400,6 +446,42 @@ mod tests {
             resolve("check", vec![], None, no_engine),
             Ok((Target::Rust, vec![]))
         );
+    }
+
+    #[test]
+    fn finds_a_cargo_alias_in_the_alias_table_or_as_a_dotted_key() {
+        let table = "# runs the CLI\n[alias]\nambler = \"run --quiet --bin cargo-ambler --\"\n";
+        assert!(has_cargo_alias(table, "ambler"));
+        assert!(has_cargo_alias(
+            "[alias]\n  \"ambler\"=[\"run\"]\n",
+            "ambler"
+        ));
+        assert!(has_cargo_alias("alias.ambler = \"run\"\n", "ambler"));
+        assert!(!has_cargo_alias("[alias]\nambler-x = \"run\"\n", "ambler"));
+        assert!(!has_cargo_alias("[alias]\n# ambler = \"run\"\n", "ambler"));
+        assert!(!has_cargo_alias("[build]\nambler = \"run\"\n", "ambler"));
+        assert!(!has_cargo_alias(
+            "[alias]\nb = \"build\"\n[env]\nambler = \"x\"\n",
+            "ambler"
+        ));
+    }
+
+    #[test]
+    fn rust_runs_natively_with_an_xtask_an_alias_or_a_global_install() {
+        let cargo = |program: &str| program == "cargo";
+        let nothing = |_: &str| None;
+        let alias = |path: &str| {
+            (path == ".cargo/config.toml").then(|| "[alias]\nambler = \"run --\"\n".to_string())
+        };
+        let old_config = |path: &str| {
+            (path == ".cargo/config").then(|| "[alias]\nambler = \"run --\"\n".to_string())
+        };
+        assert!(Target::Rust.has_native_runner(|_| false, alias, cargo));
+        assert!(Target::Rust.has_native_runner(|_| false, old_config, cargo));
+        assert!(Target::Rust.has_native_runner(|p| p == "xtask/Cargo.toml", nothing, cargo));
+        assert!(Target::Rust.has_native_runner(|_| false, nothing, |_| true));
+        assert!(!Target::Rust.has_native_runner(|_| false, nothing, cargo));
+        assert!(!Target::Rust.has_native_runner(|_| false, alias, |_| false));
     }
 
     #[test]
