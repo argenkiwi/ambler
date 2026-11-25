@@ -8,7 +8,7 @@ Without `<name>`, it makes the current folder the project, named after the folde
 
 It writes:
 
-- `package.json` with the `test`, `check` and `lint` scripts and pinned Biome, TypeScript and Bun types, and the Ambler CLI (`ambler-ts`, from GitHub) as a dev dependency, which `bun run ambler` runs; `tsconfig.json`; `biome.json`.
+- `package.json` with the `ambler`, `test`, `check` and `lint` scripts and pinned Biome, TypeScript and Bun types, and the Ambler CLI (`ambler-ts`, from GitHub) as a dev dependency, which `bun run ambler` runs (the `ambler` script makes `bun run` pick the bin over the project's own `ambler.ts`); `tsconfig.json`; `biome.json`.
 - `ambler.ts`, the engine, and empty `nodes/`, `walks/` and `utils/` folders.
 - `README.md`, `.gitignore`.
 - `AGENTS.md`, `CLAUDE.md` (which imports it) and `.agents/skills/ambler/SKILL.md`, with `.claude/skills` linked to `.agents/skills`. See `ambler help agents`.

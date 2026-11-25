@@ -1,9 +1,9 @@
 //! Where a verb runs: the language-native Ambler CLI of the project's target (see
 //! `docs/tooling_protocol.md`).
 //!
-//! The CLI is looked for in this order: the project's own (`cargo ambler`, `bun run ambler`,
-//! `uv run ambler`: a dev dependency that `ambler new` adds, run as a project script, so nothing
-//! has to be on the `PATH`), then, for TypeScript and Python, a package runner (`bunx`, `uvx`)
+//! The CLI is looked for in this order: the project's own (`cargo ambler`,
+//! `bun node_modules/.bin/ambler`, `uv run ambler`: a dev dependency that `ambler new` adds, run
+//! from the project, so nothing has to be on the `PATH`), then, for TypeScript and Python, a package runner (`bunx`, `uvx`)
 //! that fetches it. There is no fallback: with neither, the verb fails and says how to get the
 //! CLI.
 
@@ -46,6 +46,8 @@ pub fn route(
             Target::Python { .. } if !exists(".venv/bin/ambler") => {
                 ("uv", &["run", "ambler-cli"][..])
             }
+            // Projects made before the CLI became a dependency carry their own `cli.ts`.
+            Target::TypeScript if !exists("node_modules/.bin/ambler") => ("bun", &["cli.ts"][..]),
             _ => target.native_runner(),
         };
         return Route::Local(command(runner, verb, args));
@@ -134,7 +136,7 @@ mod tests {
     #[test]
     fn typescript_uses_cli_ts_then_bunx() {
         let local = route(Target::TypeScript, "walk", &[], |p| p == "cli.ts", |_| true);
-        assert_eq!(local, Route::Local(args(&["bun", "run", "ambler", "walk"])));
+        assert_eq!(local, Route::Local(args(&["bun", "cli.ts", "walk"])));
         let global = route(Target::TypeScript, "walk", &[], |_| false, |_| true);
         assert_eq!(
             global,
@@ -198,7 +200,7 @@ mod tests {
         );
         assert_eq!(
             routed,
-            Route::Local(args(&["bun", "run", "ambler", "util"]))
+            Route::Local(args(&["bun", "node_modules/.bin/ambler", "util"]))
         );
     }
 

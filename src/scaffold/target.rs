@@ -65,7 +65,10 @@ impl Target {
     pub fn native_runner(self) -> (&'static str, &'static [&'static str]) {
         match self {
             Self::Rust => ("cargo", &["ambler"]),
-            Self::TypeScript => ("bun", &["run", "ambler"]),
+            // Not `bun run ambler`: a TypeScript project has its own `ambler.ts`, which `bun run`
+            // prefers to `node_modules/.bin/ambler` unless a script named `ambler` exists, so it
+            // would run the library, do nothing and exit 0.
+            Self::TypeScript => ("bun", &["node_modules/.bin/ambler"]),
             Self::Python { .. } => ("uv", &["run", "ambler"]),
         }
     }
@@ -365,7 +368,7 @@ mod tests {
         assert_eq!(Target::Rust.native_runner(), ("cargo", &["ambler"][..]));
         assert_eq!(
             Target::TypeScript.native_runner(),
-            ("bun", &["run", "ambler"][..])
+            ("bun", &["node_modules/.bin/ambler"][..])
         );
         assert_eq!(
             Target::Python { package: "foo" }.native_runner(),
