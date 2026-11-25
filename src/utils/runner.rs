@@ -1,10 +1,10 @@
 //! Where a verb runs: the language-native Ambler CLI of the project's target (see
 //! `docs/tooling_protocol.md`).
 //!
-//! The CLI is looked for in this order: the project's own (`cargo ambler`,
-//! `bun node_modules/.bin/ambler`, `uv run ambler`: a dev dependency that `ambler new` adds, run
-//! from the project, so nothing has to be on the `PATH`), then, for TypeScript and Python, a package runner (`bunx`, `uvx`)
-//! that fetches it. There is no fallback: with neither, the verb fails and says how to get the
+//! The CLI is looked for in this order: the project's own (`cargo ambler`, an alias in
+//! `.cargo/config.toml`; `bun node_modules/.bin/ambler`; `uv run ambler`: a dev dependency that
+//! `ambler new` adds, run from the project, so nothing has to be on the `PATH`), then, for
+//! TypeScript and Python, a package runner (`bunx`, `uvx`) that fetches it. There is no fallback: with neither, the verb fails and says how to get the
 //! CLI.
 
 use crate::scaffold::target::Target;
@@ -30,17 +30,19 @@ fn command(prefix: (&str, &[&str]), verb: &str, args: &[String]) -> Vec<String> 
         .collect()
 }
 
-/// Picks where to run `verb`: `exists` tells which files the project has and `installed` which
-/// programs are on the `PATH`.
+/// Picks where to run `verb`: `exists` tells which files the project has, `read` gives a file's
+/// contents (or `None` if it is not there) and `installed` tells which programs are on the
+/// `PATH`.
 #[must_use]
 pub fn route(
     target: Target,
     verb: &str,
     args: &[String],
     exists: impl Fn(&str) -> bool,
+    read: impl Fn(&str) -> Option<String>,
     installed: impl Fn(&str) -> bool,
 ) -> Route {
-    if target.has_native_runner(&exists, &installed) {
+    if target.has_native_runner(&exists, &read, &installed) {
         let runner = match target {
             // Projects made before the CLI became `ambler` only have `ambler-cli`.
             Target::Python { .. } if !exists(".venv/bin/ambler") => {
@@ -65,7 +67,8 @@ pub fn diagnostic(target: Target) -> String {
     match target {
         Target::Rust => "ambler: the Rust Ambler CLI ('cargo ambler') was not found.\n\
              Tip: Run 'cargo build' if this project has an 'xtask' crate. Otherwise add one that \
-             depends on https://github.com/argenkiwi/ambler-rs (see its README), or install the \
+             depends on https://github.com/argenkiwi/ambler-rs (see its README), define an \
+             'ambler' alias under [alias] in .cargo/config.toml that runs the CLI, or install the \
              CLI with 'cargo install --git https://github.com/argenkiwi/ambler-rs'."
             .to_string(),
         Target::TypeScript => "ambler: the TypeScript Ambler CLI ('ambler') was not found in this \
@@ -109,6 +112,7 @@ mod tests {
             "check",
             &args(&["--lint-only"]),
             |p| p == ".venv/bin/ambler",
+            |_| None,
             |_| true,
         );
         assert_eq!(
@@ -119,7 +123,7 @@ mod tests {
 
     #[test]
     fn an_unsynced_python_project_falls_back_to_uvx() {
-        let routed = route(PY, "node", &args(&["ask"]), |_| false, |_| true);
+        let routed = route(PY, "node", &args(&["ask"]), |_| false, |_| None, |_| true);
         assert_eq!(
             routed,
             Route::Global(args(&[
@@ -135,9 +139,23 @@ mod tests {
 
     #[test]
     fn typescript_uses_cli_ts_then_bunx() {
-        let local = route(Target::TypeScript, "walk", &[], |p| p == "cli.ts", |_| true);
+        let local = route(
+            Target::TypeScript,
+            "walk",
+            &[],
+            |p| p == "cli.ts",
+            |_| None,
+            |_| true,
+        );
         assert_eq!(local, Route::Local(args(&["bun", "cli.ts", "walk"])));
-        let global = route(Target::TypeScript, "walk", &[], |_| false, |_| true);
+        let global = route(
+            Target::TypeScript,
+            "walk",
+            &[],
+            |_| false,
+            |_| None,
+            |_| true,
+        );
         assert_eq!(
             global,
             Route::Global(args(&["bunx", "github:argenkiwi/ambler-ts", "walk"]))
@@ -146,7 +164,14 @@ mod tests {
 
     #[test]
     fn rust_uses_cargo_ambler_when_installed() {
-        let routed = route(Target::Rust, "node", &args(&["ask"]), |_| true, |_| true);
+        let routed = route(
+            Target::Rust,
+            "node",
+            &args(&["ask"]),
+            |_| true,
+            |_| None,
+            |_| true,
+        );
         assert_eq!(
             routed,
             Route::Local(args(&["cargo", "ambler", "node", "ask"]))
@@ -157,19 +182,29 @@ mod tests {
     fn rust_has_nowhere_else_to_run() {
         let no_ambler = |program: &str| program == "cargo";
         assert_eq!(
-            route(Target::Rust, "check", &[], |_| false, no_ambler),
+            route(Target::Rust, "check", &[], |_| false, |_| None, no_ambler),
             Route::Missing
         );
     }
 
     #[test]
     fn with_no_cli_installed_there_is_none_to_route_to() {
-        assert_eq!(route(PY, "check", &[], |_| true, |_| false), Route::Missing);
+        assert_eq!(
+            route(PY, "check", &[], |_| true, |_| None, |_| false),
+            Route::Missing
+        );
     }
 
     #[test]
     fn a_python_project_made_before_the_cli_was_named_ambler_runs_ambler_cli() {
-        let routed = route(PY, "check", &[], |p| p == ".venv/bin/ambler-cli", |_| true);
+        let routed = route(
+            PY,
+            "check",
+            &[],
+            |p| p == ".venv/bin/ambler-cli",
+            |_| None,
+            |_| true,
+        );
         assert_eq!(
             routed,
             Route::Local(args(&["uv", "run", "ambler-cli", "check"]))
@@ -184,9 +219,21 @@ mod tests {
             "node",
             &[],
             |p| p == "xtask/Cargo.toml",
+            |_| None,
             only_cargo,
         );
         assert_eq!(routed, Route::Local(args(&["cargo", "ambler", "node"])));
+    }
+
+    #[test]
+    fn rust_runs_its_cargo_alias_without_an_xtask_or_a_global_install() {
+        let only_cargo = |program: &str| program == "cargo";
+        let config = |path: &str| {
+            (path == ".cargo/config.toml")
+                .then(|| "[alias]\nambler = \"run --quiet --bin cargo-ambler --\"\n".to_string())
+        };
+        let routed = route(Target::Rust, "check", &[], |_| false, config, only_cargo);
+        assert_eq!(routed, Route::Local(args(&["cargo", "ambler", "check"])));
     }
 
     #[test]
@@ -196,6 +243,7 @@ mod tests {
             "util",
             &[],
             |p| p == "node_modules/.bin/ambler",
+            |_| None,
             |_| true,
         );
         assert_eq!(
@@ -208,6 +256,7 @@ mod tests {
     fn each_diagnostic_says_how_to_install_the_dependency_or_the_cli() {
         let rust = diagnostic(Target::Rust);
         assert!(rust.contains("cargo build"));
+        assert!(rust.contains(".cargo/config.toml"));
         assert!(rust.contains("cargo install --git https://github.com/argenkiwi/ambler-rs"));
         let ts = diagnostic(Target::TypeScript);
         assert!(ts.contains("bun install"));

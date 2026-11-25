@@ -16,6 +16,8 @@ pub enum Outcome {
 
 pub trait Utils {
     fn exists(&self, path: &str) -> bool;
+    /// The contents of the file at `path`, or `None` if it cannot be read.
+    fn read(&self, path: &str) -> Option<String>;
     /// Whether `program` is on the `PATH`.
     fn installed(&self, program: &str) -> bool;
     /// Runs `program` with `args` and gives its exit code.
@@ -29,6 +31,10 @@ pub struct SystemUtils;
 impl Utils for SystemUtils {
     fn exists(&self, path: &str) -> bool {
         Path::new(path).exists()
+    }
+
+    fn read(&self, path: &str) -> Option<String> {
+        std::fs::read_to_string(path).ok()
     }
 
     fn installed(&self, program: &str) -> bool {
@@ -81,6 +87,7 @@ where
             &verb,
             state.args(),
             |path| self.utils.exists(path),
+            |path| self.utils.read(path),
             |program| self.utils.installed(program),
         );
         let words = match routed {
@@ -138,6 +145,23 @@ mod tests {
         assert_eq!(state.exit_code, 1);
         assert_eq!(state.message, None);
         assert_eq!(fake.ran(), ["cargo ambler node ask --terminal"]);
+    }
+
+    #[tokio::test]
+    async fn runs_a_cargo_ambler_alias_declared_in_the_cargo_config() {
+        let fake = Fake::with_programs(
+            &["cargo"],
+            &[(
+                ".cargo/config.toml",
+                "[alias]\nambler = \"run --bin cargo-ambler --\"\n",
+            )],
+        );
+
+        let (outcome, state) = run(&fake, Target::Rust, "check", &[]).await;
+
+        assert_eq!(outcome, Outcome::Ran);
+        assert_eq!(state.message, None);
+        assert_eq!(fake.ran(), ["cargo ambler check"]);
     }
 
     #[tokio::test]
