@@ -1,10 +1,13 @@
 [package]
 name = "ambler"
-version = "0.7.2"
+version = "0.7.3"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
 description = "Scaffolds and checks Ambler projects"
+
+[workspace]
+members = [".", "xtask"]
 
 [dependencies]
 thiserror = "2"
