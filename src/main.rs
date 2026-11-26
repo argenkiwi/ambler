@@ -2,6 +2,7 @@
 //!
 //! The target language is worked out here, once, for every verb: see `scaffold::target`.
 
+use ambler::guides;
 use ambler::scaffold::target::{self, Target};
 use ambler::walks::{self, Error};
 use std::path::Path;
@@ -34,6 +35,10 @@ async fn main() -> ExitCode {
         // What each target's native CLI does best is left to it: see `docs/tooling_protocol.md`.
         "node" | "util" | "walk" | "check" => walks::delegate::run(target, &verb, rest).await,
         "pave" => walks::pave::run(target, rest).await,
+        // A project's components and conventions are documented by its own CLI.
+        "help" if rest.first().is_some_and(|topic| guides::is_native(topic)) => {
+            walks::delegate::run(target, &verb, rest).await
+        }
         "help" => walks::help::run(target, rest).await,
         "" => walks::help::run(target, Vec::new()).await,
         _ => walks::help::run(target, vec![verb]).await,

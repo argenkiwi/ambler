@@ -96,10 +96,10 @@ mod tests {
     async fn prints_the_guide_of_a_topic() {
         let fake = Fake::default();
 
-        let (outcome, state) = run(&fake, &["walk"]).await;
+        let (outcome, state) = run(&fake, &["pave"]).await;
 
         assert_eq!(outcome, Outcome::Printed);
-        assert!(fake.printed()[0].starts_with("# ambler walk\n"));
+        assert!(fake.printed()[0].starts_with("# ambler pave\n"));
         assert_eq!(state.message, None);
     }
 

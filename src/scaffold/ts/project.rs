@@ -4,6 +4,7 @@
 //! <https://github.com/argenkiwi/ambler-ts> at commit `354c8a2`.
 
 use crate::scaffold::context::{context, within};
+use crate::scaffold::target::Target;
 use crate::scaffold::{Change, names};
 
 /// The engine every TypeScript project shares.
@@ -118,7 +119,7 @@ pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
         Change::write(at("README.md"), named(README)),
         Change::write(at("ambler.ts"), ENGINE),
     ];
-    changes.extend(context(folder));
+    changes.extend(context(folder, Target::TypeScript));
     if example {
         for (path, contents) in EXAMPLE {
             changes.push(Change::write(at(path), *contents));

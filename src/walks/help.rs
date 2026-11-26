@@ -85,10 +85,10 @@ mod tests {
     async fn prints_a_guide_on_standard_output() {
         let fake = Fake::default();
 
-        let state = help(&fake, &["check"]).await;
+        let state = help(&fake, &["pave"]).await;
 
         assert_eq!(state.message, None);
-        assert!(fake.printed()[0].starts_with("# ambler check\n"));
+        assert!(fake.printed()[0].starts_with("# ambler pave\n"));
         assert!(fake.eprinted().is_empty());
     }
 

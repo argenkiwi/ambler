@@ -35,7 +35,7 @@ ambler help [topic]                # the conventions, one guide per topic
 | `walk <name> --nodes … [--edge …]` | Reads the nodes and writes the walk: `State`, `Id`, the exhaustive `step`, `run()`, a wiring-test skeleton, the spec and the runner. Edges not given are left as `todo!()` arms. |
 | `check [--lint-only]` | Reports each broken convention as `path:line: rule: message`, then runs `cargo fmt --check`, clippy with warnings denied and the tests. |
 | `pave <spec> --agent '<cmd>' …` | Implements a spec by running a coding agent in a loop, one narrow task per run (create or finish a node, wire the walk, repair the check), committing a checkpoint after every passing check. Rolls back and stops if the agent gets stuck. |
-| `help [topic]` | Prints a guide: a verb, or `conventions`, `node-design`, `testing`, `spec`, `agents`. |
+| `help [topic]` | Prints a guide: `new`, `pave`, `help`, `agents`, or hands `node`, `util`, `walk`, `check`, `conventions`, `node-design`, `testing` and `spec` to the native CLI. |
 
 Nothing is ever overwritten: a verb fails if a file it would create exists.
 
@@ -59,12 +59,14 @@ Inside a project the flag is not needed: every verb works out the target from `-
 
 ## Agents
 
-The conventions are written down in one place, the guides compiled into the binary, next to the code that enforces them. The context files only point there:
+The conventions are written down in one place, the guides compiled into each native CLI, next to the code that enforces them. The context files only point there:
 
-- `AGENTS.md`: a few standing rules, always in context (create with `ambler`, test first, finish with `ambler check`). `CLAUDE.md` imports it.
-- `.agents/skills/ambler/SKILL.md`: one skill that triggers on requests like "add a step" and routes each to a verb and a guide. Install it globally with `npx skills add argenkiwi/ambler` so that an agent in an empty folder knows to start with `ambler new`.
+- `AGENTS.md`: a few standing rules, always in context (create with the project's CLI, test first, finish with its `check`). `CLAUDE.md` imports it.
+- `.agents/skills/ambler/SKILL.md`: one skill that triggers on requests like "add a step" and routes each to a verb and a guide.
 
-`ambler new` writes both into every project. They are this repository's own files: ambler is an Ambler project, follows the same instructions and passes its own `ambler check`.
+`ambler new` writes both into every project from `templates/AGENTS.md` and `templates/SKILL.md`, naming the project's own CLI (`cargo ambler`, `bun run ambler` or `uv run ambler`) rather than `ambler`. The guides to nodes, utils, walks, specs and testing ship with that CLI (`<cli> help <topic>`), so an agent in a container that has only the project's dependencies, such as one started by [PiDE](https://github.com/argenkiwi/pide), has everything it needs without `ambler` installed. On the host, `ambler help <topic>` hands those topics to the same CLI.
+
+This repository's own skill is the global one: install it with `npx skills add argenkiwi/ambler` so that an agent in an empty folder knows to start with `ambler new`.
 
 ## Layout
 
@@ -75,7 +77,7 @@ src/walks/       One walk per verb: `delegate` (node, walk, util, check), `new`,
 src/nodes/       delegate runs a native CLI; plan_project decides what `new` writes; write, report, guide and the `pave` nodes act
 src/scaffold/    Pure text in, text out: new-project files, the source reader `pave` uses
 src/utils/       File system and process access
-src/guides/      The guides `ambler help` prints
+src/guides/      The guides `ambler help` keeps (overview, new, pave, help, agents); the rest ship with each native CLI
 templates/       Static files for new projects, and the counter example
 specs/           One spec per walk
 ```
