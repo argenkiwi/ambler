@@ -85,7 +85,7 @@ fn shared(topic: &str) -> Option<&'static str> {
         "spec" => include_str!("guides/spec.md"),
         "agents" => concat!(
             include_str!("guides/agents.md"),
-            include_str!("../AGENTS.md")
+            include_str!("../templates/AGENTS.md")
         ),
         _ => return None,
     })
