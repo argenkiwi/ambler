@@ -4,7 +4,7 @@ The **Ambler Tooling Protocol (ATP)** defines the standardized CLI contract that
 
 By adhering to this protocol, each repository is self-contained (developers can work natively without installing foreign toolchains), while the unified orchestrator `ambler` can transparently discover and delegate tasks across all supported languages.
 
-`ambler` has no fallback of its own: it is the common entry point for what applies to every target (`new`, `pave`, `help`) and hands `node`, `walk`, `util` and `check` to the native CLI. If there is none it exits 2 with how to install it; otherwise it ends with the CLI's exit code. `new` is not part of the protocol: it runs before a project, and so its CLI, exists.
+`ambler` has no fallback of its own: it is the common entry point for what applies to every target (`new`, `pave`, `help`) and hands `node`, `walk`, `util`, `check` and the component and convention guides of `help` to the native CLI. If there is none it exits 2 with how to install it; otherwise it ends with the CLI's exit code. `new` is not part of the protocol: it runs before a project, and so its CLI, exists.
 
 ---
 
@@ -89,3 +89,20 @@ Verifies conventions, formatting, types/lints, and tests.
 * `0`: All checks, formatting, and tests passed.
 * `1`: Check failure (lint violation, type error, or test failure).
 * `2`: Invalid arguments or unexpected execution error.
+
+### 2.5 `help`
+Prints the guides to a project's components and conventions.
+
+```sh
+<tool> help [topic]
+```
+
+* `[topic]`: one of `node`, `util`, `walk`, `check`, `conventions`, `node-design`, `testing`, `spec`. Without one, the general guide: the verbs, the topics, the exit codes, the layout and the usual order of work.
+
+**Behavior:**
+* Prints the guide on standard output and exits `0`. The guides are embedded in the CLI (compiled in, a text import or package data), never fetched, so a project reads the guides of the version it pins, offline.
+* An unknown topic lists the topics on standard error and exits `1`.
+* Guides name the native invocation (`cargo ambler node`, `bun run ambler node`, `uv run ambler node`), never the global `ambler`, so an agent can follow them where only the project's dependencies are installed, such as in a container.
+* `--help` and `-h` print the usage.
+
+`ambler help <topic>` hands these topics to the native CLI. `ambler` keeps the guides that apply before or outside a project: the overview, `new`, `pave`, `help` and `agents`.

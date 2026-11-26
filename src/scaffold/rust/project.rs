@@ -5,6 +5,7 @@
 
 use crate::scaffold::Change;
 use crate::scaffold::context::{context, within};
+use crate::scaffold::target::Target;
 
 const ENGINE: &str = include_str!("../../engine.rs");
 
@@ -68,7 +69,7 @@ pub fn project(package: &str, folder: &str, example: bool) -> Vec<Change> {
         Change::write(at("xtask/src/main.rs"), XTASK_MAIN),
         Change::write(at(".cargo/config.toml"), CARGO_CONFIG),
     ];
-    changes.extend(context(folder));
+    changes.extend(context(folder, Target::Rust));
 
     let (nodes, walks, utils) = if example {
         for (name, source) in EXAMPLE_NODES {

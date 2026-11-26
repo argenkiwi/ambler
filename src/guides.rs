@@ -1,13 +1,29 @@
 //! The guides `ambler help` prints, compiled into the binary.
 //!
-//! They are the single place the conventions are written down: `AGENTS.md` and the skill only
-//! point here. Topics whose conventions depend on the language have a guide per target; the
-//! others are shared.
+//! ambler keeps only what applies before or outside a project: the overview, `new`, `pave`,
+//! `help` and `agents`. The guides to a project's components and conventions ship with the
+//! project's own CLI (the Ambler Tooling Protocol's `help` verb), next to the code that enforces
+//! them, so `ambler help <topic>` hands those topics to it.
 
 use crate::scaffold::target::Target;
 
 /// The verbs of the command line, in the order `main` dispatches them.
 pub const VERBS: &[&str] = &["new", "node", "util", "walk", "check", "pave", "help"];
+
+/// The topics whose guides ambler prints itself.
+pub const OWN: &[&str] = &["new", "pave", "help", "agents"];
+
+/// The topics whose guides the project's own CLI prints: `<cli> help <topic>`.
+pub const NATIVE: &[&str] = &[
+    "node",
+    "util",
+    "walk",
+    "check",
+    "conventions",
+    "node-design",
+    "testing",
+    "spec",
+];
 
 /// Every topic `ambler help <topic>` knows: the verbs, then the conventions behind them.
 pub const TOPICS: &[&str] = &[
@@ -25,65 +41,26 @@ pub const TOPICS: &[&str] = &[
     "agents",
 ];
 
-/// The guide for `topic` in a `target` project, or the general guide for `""`.
+/// Whether `ambler help <topic>` hands the topic to the project's own CLI.
+#[must_use]
+pub fn is_native(topic: &str) -> bool {
+    NATIVE.contains(&topic)
+}
+
+/// The guide ambler holds for `topic` in a `target` project, or the general guide for `""`.
+/// [`NATIVE`] topics have none here.
 #[must_use]
 pub fn guide(topic: &str, target: Target) -> Option<&'static str> {
-    let own = match target {
-        Target::Rust => None,
-        Target::TypeScript => typescript(topic),
-        Target::Python { .. } => python(topic),
-    };
-    own.or_else(|| shared(topic))
-}
-
-/// The guides written for Python projects.
-fn python(topic: &str) -> Option<&'static str> {
-    Some(match topic {
-        "" => include_str!("guides/py/general.md"),
-        "new" => include_str!("guides/py/new.md"),
-        "node" => include_str!("guides/py/node.md"),
-        "util" => include_str!("guides/py/util.md"),
-        "walk" => include_str!("guides/py/walk.md"),
-        "check" => include_str!("guides/py/check.md"),
-        "conventions" => include_str!("guides/py/conventions.md"),
-        "node-design" => include_str!("guides/py/node-design.md"),
-        "testing" => include_str!("guides/py/testing.md"),
-        _ => return None,
-    })
-}
-
-/// The guides written for TypeScript projects.
-fn typescript(topic: &str) -> Option<&'static str> {
-    Some(match topic {
-        "" => include_str!("guides/ts/general.md"),
-        "new" => include_str!("guides/ts/new.md"),
-        "node" => include_str!("guides/ts/node.md"),
-        "util" => include_str!("guides/ts/util.md"),
-        "walk" => include_str!("guides/ts/walk.md"),
-        "check" => include_str!("guides/ts/check.md"),
-        "conventions" => include_str!("guides/ts/conventions.md"),
-        "node-design" => include_str!("guides/ts/node-design.md"),
-        "testing" => include_str!("guides/ts/testing.md"),
-        _ => return None,
-    })
-}
-
-/// The guides for Rust projects, and those every target shares.
-fn shared(topic: &str) -> Option<&'static str> {
-    Some(match topic {
-        "" => include_str!("guides/general.md"),
-        "new" => include_str!("guides/new.md"),
-        "node" => include_str!("guides/node.md"),
-        "util" => include_str!("guides/util.md"),
-        "walk" => include_str!("guides/walk.md"),
-        "check" => include_str!("guides/check.md"),
-        "pave" => include_str!("guides/pave.md"),
-        "help" => include_str!("guides/help.md"),
-        "conventions" => include_str!("guides/conventions.md"),
-        "node-design" => include_str!("guides/node-design.md"),
-        "testing" => include_str!("guides/testing.md"),
-        "spec" => include_str!("guides/spec.md"),
-        "agents" => concat!(
+    Some(match (topic, target) {
+        ("", Target::TypeScript) => include_str!("guides/ts/general.md"),
+        ("", Target::Python { .. }) => include_str!("guides/py/general.md"),
+        ("", Target::Rust) => include_str!("guides/general.md"),
+        ("new", Target::TypeScript) => include_str!("guides/ts/new.md"),
+        ("new", Target::Python { .. }) => include_str!("guides/py/new.md"),
+        ("new", Target::Rust) => include_str!("guides/new.md"),
+        ("pave", _) => include_str!("guides/pave.md"),
+        ("help", _) => include_str!("guides/help.md"),
+        ("agents", _) => concat!(
             include_str!("guides/agents.md"),
             include_str!("../templates/AGENTS.md")
         ),
@@ -136,7 +113,7 @@ pub fn unknown_mentions(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scaffold::context::{AGENTS, SKILL};
+    use crate::scaffold::context::{AGENTS, GLOBAL_SKILL, SKILL, render};
 
     const TARGETS: [Target; 3] = [
         Target::Rust,
@@ -145,10 +122,10 @@ mod tests {
     ];
 
     #[test]
-    fn every_topic_has_a_guide_titled_after_it_in_every_target() {
+    fn every_own_topic_has_a_guide_titled_after_it_in_every_target() {
         for target in TARGETS {
             assert!(guide("", target).unwrap().starts_with("# ambler\n"));
-            for topic in TOPICS {
+            for topic in OWN {
                 let guide = guide(topic, target).unwrap_or_else(|| panic!("no guide for {topic}"));
                 assert!(
                     guide.starts_with(&format!("# ambler {topic}\n")),
@@ -156,40 +133,41 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn every_topic_is_either_own_or_native_and_every_verb_is_a_topic() {
+        for topic in TOPICS {
+            assert!(OWN.contains(topic) != is_native(topic), "{topic}");
+        }
+        assert_eq!(OWN.len() + NATIVE.len(), TOPICS.len());
         for verb in VERBS {
             assert!(TOPICS.contains(verb), "{verb}");
         }
     }
 
     #[test]
-    fn a_typescript_project_reads_its_own_guide_where_there_is_one() {
+    fn native_topics_have_no_guide_here() {
+        for topic in NATIVE {
+            assert_eq!(guide(topic, Target::Rust), None, "{topic}");
+        }
+    }
+
+    #[test]
+    fn a_project_reads_its_own_new_guide() {
         assert!(
-            guide("node", Target::TypeScript)
+            guide("new", Target::TypeScript)
                 .unwrap()
-                .contains("nodes/<name>.ts")
-        );
-        assert!(
-            guide("node", Target::Rust)
-                .unwrap()
-                .contains("src/nodes/<name>.rs")
-        );
-        assert_eq!(
-            guide("spec", Target::TypeScript),
-            guide("spec", Target::Rust)
+                .contains("--target ts")
         );
         let python = Target::Python { package: "app" };
-        assert!(
-            guide("node", python)
-                .unwrap()
-                .contains("src/<package>/nodes/<name>.py")
-        );
         assert_eq!(guide("pave", python), guide("pave", Target::Rust));
     }
 
     #[test]
     fn there_is_no_guide_for_an_unknown_topic() {
         assert_eq!(guide("frobnicate", Target::Rust), None);
-        assert_eq!(guide("frobnicate", Target::TypeScript), None);
+        assert!(!is_native("frobnicate"));
     }
 
     #[test]
@@ -206,15 +184,25 @@ mod tests {
 
     #[test]
     fn the_context_files_and_guides_only_mention_what_exists() {
-        assert_eq!(unknown_mentions(AGENTS), Vec::<String>::new(), "AGENTS.md");
-        assert_eq!(unknown_mentions(SKILL), Vec::<String>::new(), "SKILL.md");
+        assert_eq!(
+            unknown_mentions(GLOBAL_SKILL),
+            Vec::<String>::new(),
+            "global skill"
+        );
         for target in TARGETS {
+            for (name, template) in [("AGENTS.md", AGENTS), ("SKILL.md", SKILL)] {
+                assert_eq!(
+                    unknown_mentions(&render(template, target)),
+                    Vec::<String>::new(),
+                    "{name} ({target:?})"
+                );
+            }
             assert_eq!(
                 unknown_mentions(guide("", target).unwrap()),
                 Vec::<String>::new(),
                 "general ({target:?})"
             );
-            for topic in TOPICS {
+            for topic in OWN {
                 assert_eq!(
                     unknown_mentions(guide(topic, target).unwrap()),
                     Vec::<String>::new(),

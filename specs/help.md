@@ -2,6 +2,8 @@
 
 `ambler help [topic]` prints a guide. It also runs when ambler is given no verb, and when it is given a verb it does not know.
 
+The guides to a project's components and conventions (`node`, `util`, `walk`, `check`, `conventions`, `node-design`, `testing`, `spec`) ship with the project's own CLI, so `ambler help` with one of those topics is handed to it like the other delegated verbs (see `specs/delegate.md`) and never reaches this walk. This walk prints the ones ambler keeps: the overview, `new`, `pave`, `help` and `agents`.
+
 ## Nodes
 
 ### Guide

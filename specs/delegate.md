@@ -1,6 +1,6 @@
 # Program Specifications
 
-`ambler node`, `ambler walk`, `ambler util` and `ambler check` hand the verb, with its arguments, to the native Ambler CLI of the project's target, and end with the exit code it ends with. ambler does none of this work itself: each target's CLI scaffolds and checks its own language. See `docs/tooling_protocol.md`.
+`ambler node`, `ambler walk`, `ambler util`, `ambler check`, and `ambler help` with a topic the project's own CLI documents, hand the verb, with its arguments, to the native Ambler CLI of the project's target, and end with the exit code it ends with. ambler does none of this work itself: each target's CLI scaffolds and checks its own language. See `docs/tooling_protocol.md`.
 
 ## Nodes
 

@@ -4,6 +4,7 @@
 //! unchanged from <https://github.com/argenkiwi/ambler-py> at commit `7bcb4dc`.
 
 use crate::scaffold::context::{context, within};
+use crate::scaffold::target::Target;
 use crate::scaffold::{Change, names};
 
 /// The engine every Python project shares.
@@ -171,7 +172,7 @@ pub fn project(project: &str, package: &str, folder: &str, example: bool) -> Vec
         Change::write(at(&format!("src/{package}/engine.py")), ENGINE),
         Change::write(at(&format!("src/{package}/py.typed")), ""),
     ];
-    changes.extend(context(folder));
+    changes.extend(context(folder, Target::Python { package: "" }));
     let files = if example {
         self::example(package)
     } else {
