@@ -416,8 +416,8 @@ pub fn node_prompt(brief: &Brief, name: &str, exists: bool) -> String {
             "`run`",
         ),
         Target::TypeScript => (
-            "the nodes in nodes/ declare the state fields that exist in their `State`: read them, \
-             and reuse a field with `--state <field>`, which takes the same type"
+            "nodes/state.ts declares the state interfaces that exist: read it, and reuse them \
+             with `--state <field>` instead of redeclaring them"
                 .to_string(),
             format!(
                 "`ambler node {name} (--outcomes <a,b> | --terminal) [--state \
@@ -851,7 +851,7 @@ mod tests {
 
         let node = node_prompt(&brief, "report", false);
         assert!(node.contains("do not touch `ambler.ts`"));
-        assert!(node.contains("the nodes in nodes/ declare the state fields"));
+        assert!(node.contains("nodes/state.ts declares the state interfaces"));
         assert!(node.contains("`nodes/report.ts` does not exist yet."));
         assert!(node.contains("`bun test nodes/tests/report.test.ts`"));
         assert!(!node.contains("--fallible"));

@@ -14,7 +14,7 @@ Topics: a verb (new, node, util, walk, check, pave, help), or conventions, node-
 
 ## The four ideas
 
-- State: one struct per walk. Nodes see it only through `Has*` traits, so they stay reusable.
+- State: one struct per walk. Nodes see it only through `Has*` traits, one field each, so they stay reusable.
 - Node: one step. It reads and changes the state, performs side effects through its `Utils`, and returns an `Outcome`. It never names the node that comes next.
 - Utils: a node's side effects, one trait method each. `SystemUtils` is the real thing; tests pass a mock.
 - Walk: owns the nodes and matches each outcome to the next node. The match is exhaustive, so an unwired outcome does not compile.
@@ -24,7 +24,7 @@ Topics: a verb (new, node, util, walk, check, pave, help), or conventions, node-
     src/engine.rs   Node and Walk traits, Transition (identical in every project)
     src/main.rs     runs the primary walk (other walks: src/bin/<walk>.rs)
     src/walks/      one file per walk, with an inline wiring test
-    src/nodes/      one file per node; mod.rs also holds the Has* state traits
+    src/nodes/      one file per node; mod.rs also holds the Has* state traits (and only it)
     src/utils/      side-effectful functions nodes delegate to
     specs/          one plain-language spec per walk
 

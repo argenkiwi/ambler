@@ -14,7 +14,7 @@ Topics: a verb (new, node, util, walk, check, pave, help), or conventions, node-
 
 ## The four ideas
 
-- State: one object per walk. Each node declares only the fields it uses in its own `State`; the walk's `State` has them all.
+- State: one object per walk. `nodes/state.ts` declares a `Has*` interface per field; each node's `State` extends only the ones it uses, and the walk's `State` has them all.
 - Node: one step. A factory takes the edges and utils and returns a function from state to `[next, newState]`. It returns the id its edge was wired to, never a node it chose.
 - Utils: a node's side effects, one function each, in its `Utils` type. `defaultUtils` is the real thing; tests pass their own.
 - Walk: wires each node's edges to the next node in `createWalk`. The edges record is typed, so an unwired edge does not compile.
@@ -24,7 +24,7 @@ Topics: a verb (new, node, util, walk, check, pave, help), or conventions, node-
     ambler.ts       NodeFactory, ambler(), walk(), WalkError (identical in every project)
     walks/          one file per walk; each runs itself under `bun walks/<walk>.ts`
     walks/tests/    one wiring test per walk
-    nodes/          one file per node
+    nodes/          one file per node; state.ts holds the Has* state interfaces (and only it)
     nodes/tests/    one test file per node
     utils/          side-effectful functions nodes delegate to
     specs/          one plain-language spec per walk
