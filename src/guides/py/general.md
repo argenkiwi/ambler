@@ -14,7 +14,7 @@ Topics: a verb (new, node, util, walk, check, pave, help), or conventions, node-
 
 ## The four ideas
 
-- State: one dataclass per walk. Nodes ask for state through small protocols, `HasCount`, kept in `nodes/__init__.py`; the walk's `State` has every field they need, which pyright checks.
+- State: one dataclass per walk. Nodes ask for state through `Has*` protocols, one field each (`HasCount`), kept only in `nodes/__init__.py`; the walk's `State` has every field they need, which pyright checks.
 - Node: one step. A frozen dataclass whose `async def run(self, state)` mutates the state and returns a member of its `Outcome` enum: what happened, never which node comes next.
 - Utils: a node's side effects, one method each, in its `Utils` protocol. `SystemUtils` is the real thing; tests pass their own.
 - Walk: a `Walk[Id, State]` subclass whose `step` matches each node's outcomes to the next `Id`. The match has no `case _:`, so pyright fails on an unwired outcome.

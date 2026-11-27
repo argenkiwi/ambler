@@ -25,6 +25,10 @@ const EXAMPLE: &[(&str, &str)] = &[
         include_str!("../../../templates/ts/example/nodes/start.ts"),
     ),
     (
+        "nodes/state.ts",
+        include_str!("../../../templates/ts/example/nodes/state.ts"),
+    ),
+    (
         "nodes/stop.ts",
         include_str!("../../../templates/ts/example/nodes/stop.ts"),
     ),
@@ -180,6 +184,8 @@ mod tests {
 
         assert!(contents(&changes, "walks/counter.ts").contains("export function createWalk"));
         assert!(contents(&changes, "nodes/tests/count.test.ts").contains("bun:test"));
+        assert!(contents(&changes, "nodes/state.ts").contains("export interface HasCount"));
+        assert!(contents(&changes, "nodes/count.ts").contains("State extends HasCount"));
         assert!(contents(&changes, "specs/counter.md").contains("### Start"));
         assert!(
             contents(&changes, "package.json").contains(

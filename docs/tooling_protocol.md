@@ -44,7 +44,8 @@ Scaffolds a new node module and its corresponding unit tests.
 **Behavior:**
 * Creates the node file in the language's nodes directory (`nodes/<name>.ts`, `src/<pkg>/nodes/<name>.py`, `src/nodes/<name>.rs`).
 * Creates failing unit test skeletons in the tests directory (`nodes/tests/<name>.test.ts`, `tests/nodes/test_<name>.py`).
-* Registers or updates shared state definitions if required by the target conventions.
+* Each `--state <field>:<Type>` adds a `Has<Field>` contract to the state registry (§3) if none exists; a type that differs from the existing contract's is an error (exit 2). A bare `--state <field>` reuses the existing contract, and is an error when there is none.
+* The node composes the contracts it was given, and nothing else.
 
 ### 2.2 `walk`
 Wires existing nodes into a state machine walk.
@@ -62,6 +63,7 @@ Wires existing nodes into a state machine walk.
 * Creates the walk definition file (`walks/<name>.ts`, `src/<pkg>/walks/<name>.py`, `src/walks/<name>.rs`).
 * Creates the wiring integration test (`walks/tests/<name>.test.ts`, `tests/walks/test_<name>.py`).
 * Creates the specification template (`specs/<name>.md`).
+* Builds the walk's `State` from the contracts its nodes compose, read from the state registry (§3); an unknown contract or a field two contracts type differently is an error (exit 2).
 * Adds a runner entry point (e.g. in `pyproject.toml` scripts, `package.json` scripts, or `main.rs`) unless `--no-runner` is specified.
 
 ### 2.3 `util`
@@ -85,6 +87,8 @@ Verifies conventions, formatting, types/lints, and tests.
 
 * `--lint-only`: Runs convention checks and linters without executing the test suite.
 
+The convention checks include the state contract rules of §3 (`state-traits` in Rust, `state-protocols` in Python, `state-contracts` in TypeScript); a violation names the rule and exits `1`.
+
 **Exit Codes:**
 * `0`: All checks, formatting, and tests passed.
 * `1`: Check failure (lint violation, type error, or test failure).
@@ -106,3 +110,23 @@ Prints the guides to a project's components and conventions.
 * `--help` and `-h` print the usage.
 
 `ambler help <topic>` hands these topics to the native CLI. `ambler` keeps the guides that apply before or outside a project: the overview, `new`, `pave`, `help` and `agents`.
+
+---
+
+## 3. State Contracts
+
+A node declares the part of the walk's state it needs through *state contracts*, so it works with any walk whose state has those fields. Every target follows the same rules:
+
+1. **One registry.** All contracts of a project live in one module, the *state registry*. No other file declares one.
+2. **One field each.** A contract is named `Has<Field>` (PascalCase of the field) and covers exactly one field.
+3. **Nodes compose, never declare.** A node requires only the contracts for the fields it reads or writes, combined in the target's own way. It declares no state fields of its own.
+4. **The walk's `State` satisfies them.** It has every field its nodes' contracts name, and no field that no node uses. The compiler or type checker verifies this.
+5. **Tools read the registry.** `node --state` adds or reuses contracts there; `walk` builds `State` from it; `check` enforces rules 1–3.
+
+| Target | Registry | Contract | A node composes | No state |
+|---|---|---|---|---|
+| **Rust** | `src/nodes/mod.rs` | `trait HasCount { fn count(&self) -> u32; fn count_mut(&mut self) -> &mut u32; }` (`_mut` optional: read-only contracts are allowed; no other methods) | `where S: HasCount + HasExitCode + Send` | `where S: Send` |
+| **TypeScript** | `nodes/state.ts` | `export interface HasCount { count: number }` | `export interface State extends HasCount, HasExitCode {}` | `export type State = object;` |
+| **Python** | `src/<pkg>/nodes/__init__.py` | `class HasCount(Protocol): count: int` | `run(self, state: HasCount)`, or a local `class State(HasCount, HasExitCode, Protocol): pass` | `state: object` |
+
+A contract's field may have any type, a struct or record included; what it may not do is name a second field, or offer behaviour beyond reading and writing its one field. Behaviour belongs in the node, or in its utils when it is a side effect.
