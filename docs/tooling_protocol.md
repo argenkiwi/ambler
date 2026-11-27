@@ -106,3 +106,37 @@ Prints the guides to a project's components and conventions.
 * `--help` and `-h` print the usage.
 
 `ambler help <topic>` hands these topics to the native CLI. `ambler` keeps the guides that apply before or outside a project: the overview, `new`, `pave`, `help` and `agents`.
+
+---
+
+## 3. State Protocol Placement Convention
+
+To preserve loose coupling between nodes and walks, nodes must not depend on a walk's concrete state structure. Instead, nodes declare their state dependencies using abstract protocols (traits, protocols, or interfaces).
+
+Ambler projects follow a standardized **Two-Tier State Protocol Convention**:
+
+### 3.1 Two-Tier Architecture
+
+1. **Atomic Field Protocols (`Has<Field>`)**:
+   - **Scope**: Represents an atomic field or single property/capability (Interface Segregation Principle).
+   - **Naming**: `Has<PascalCaseField>` (e.g. `HasCount`, `HasExitCode`, `HasArgs`).
+   - **Placement**: Located at the root boundary or designated state contract file of the `nodes` package:
+     - **Rust (`ambler-rs`)**: `src/nodes/mod.rs` (or `src/nodes/state.rs` re-exported in `src/nodes/mod.rs`).
+     - **Python (`ambler-py`)**: `src/<pkg>/nodes/__init__.py` (or `src/<pkg>/nodes/state.py` re-exported in `__init__.py`).
+     - **Kotlin (`ambler-kt`)**: `src/<pkg>/nodes/State.kt` (or `src/<pkg>/nodes/state/` package for large projects).
+     - **TypeScript (`ambler-ts`)**: `nodes/state.ts` (or `nodes/index.ts`).
+     - **Mojo (`ambler-mojo`)**: `nodes/state.mojo` (or `nodes/__init__.mojo`).
+   - **Sibling Isolation Rule**: A node must **never** import a state protocol from a sibling node module (e.g. `nodes/stop` must never import state from `nodes/count`). Shared state protocols always live at the `nodes` package boundary.
+
+2. **Composite Node-Level Contracts (`State`)**:
+   - **Scope**: Combines the atomic protocols required by a specific node.
+   - **Placement**: Defined locally within the node's own source file (`nodes/<node_name>.*`).
+   - **Form**:
+     - **Rust**: Trait bounds on the node's implementation: `impl<S> Node<S> for Count where S: HasCount + Send`.
+     - **Python**: Node-local protocol combining atomic protocols: `class State(HasCount, HasName, Protocol): pass`.
+     - **TypeScript**: Local interface or intersection type: `type State = HasCount & HasName;` or local structural interface `export interface State { count: number; }`.
+     - **Kotlin**: Composite interface: `interface State : HasCount, HasName`.
+
+### 3.2 Walk Fulfillment
+- The walk in `walks/` owns the concrete `State` (struct, dataclass, or class) which implements or structurally satisfies all atomic protocols required by its constituent nodes.
+
